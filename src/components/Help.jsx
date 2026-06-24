@@ -1,3 +1,5 @@
+import { Icon } from './Icon.jsx'
+
 // In-app user guide.
 const card = { maxWidth: 720, marginBottom: 16 }
 const li = { fontSize: 13.5, color: 'var(--text-2)', margin: '6px 0', lineHeight: 1.55 }
@@ -10,7 +12,7 @@ export default function Help() {
         <div className="sub">A quick guide to every part of Voyager</div></div></div>
 
       <div className="card" style={card}>
-        <h3><span className="ttl-ico">🔓</span> Getting in</h3>
+        <h3><Icon name="unlock" /> Getting in</h3>
         <P><b>First time:</b> create a passphrase — it encrypts everything. You'll be shown a one‑time <b>recovery code</b>; save it somewhere safe, it's the only way back in if you forget your passphrase.</P>
         <P><b>Every time after:</b> enter your passphrase (or use Face ID / passkey if enabled).</P>
         <P><b>Forgot it?</b> Tap “Forgot passphrase?” on the lock screen, enter your recovery code, and set a new one — your documents stay intact.</P>
@@ -18,7 +20,7 @@ export default function Help() {
       </div>
 
       <div className="card" style={card}>
-        <h3><span className="ttl-ico">🏠</span> Dashboard</h3>
+        <h3><Icon name="home" /> Dashboard</h3>
         <ul>
           <li style={li}><b>Weather</b> for your next trip, plus a 5‑day forecast. Search any city in the box.</li>
           <li style={li}><b>Flights</b> — each flight leg of your next trip with live status when available.</li>
@@ -27,7 +29,7 @@ export default function Help() {
       </div>
 
       <div className="card" style={card}>
-        <h3><span className="ttl-ico">🗺️</span> Trips</h3>
+        <h3><Icon name="map" /> Trips</h3>
         <P>One trip covers your whole journey. Add it two ways:</P>
         <ul>
           <li style={li}><b>＋ Add manually</b> — set a main destination (for weather) and your Leaving/Returning dates, then add <b>legs</b> (each hop, with transport mode ✈️🚆🚗⛴️🚌 and a flight/train number) and <b>stays</b> (hotels/Airbnb with check‑in/out and confirmation).</li>
@@ -37,7 +39,7 @@ export default function Help() {
       </div>
 
       <div className="card" style={card}>
-        <h3><span className="ttl-ico">🔐</span> Document Vault</h3>
+        <h3><Icon name="shield" /> Document Vault</h3>
         <ul>
           <li style={li}><b>＋ Add document</b> — pick owner, type, expiry, and a file (or phone camera). It's encrypted before saving.</li>
           <li style={li}><b>✨ Auto‑fill from passport scan</b> — for passports, reads the details from a clear photo.</li>
@@ -47,12 +49,12 @@ export default function Help() {
       </div>
 
       <div className="card" style={card}>
-        <h3><span className="ttl-ico">🎒</span> Packing</h3>
+        <h3><Icon name="bag" /> Packing</h3>
         <P>A checklist per trip. Pick the trip, tick items as you pack, ＋ add your own (with a category), and ✕ remove any. The bar tracks your progress.</P>
       </div>
 
       <div className="card" style={card}>
-        <h3><span className="ttl-ico">🆘</span> Emergency</h3>
+        <h3><Icon name="lifebuoy" /> Emergency</h3>
         <ul>
           <li style={li}><b>Emergency numbers</b> for your destination country.</li>
           <li style={li}><b>Hospitals</b> — type a city, Look up, then open nearby hospitals in Maps.</li>
@@ -62,7 +64,7 @@ export default function Help() {
       </div>
 
       <div className="card" style={card}>
-        <h3><span className="ttl-ico">⚙️</span> Settings</h3>
+        <h3><Icon name="settings" /> Settings</h3>
         <ul>
           <li style={li}><b>Appearance</b> — Auto / Light / Dark theme.</li>
           <li style={li}><b>Your name</b> — personalises the greeting (per device).</li>
@@ -74,7 +76,7 @@ export default function Help() {
       </div>
 
       <div className="card" style={card}>
-        <h3><span className="ttl-ico">📱</span> More than one device</h3>
+        <h3><Icon name="phone" /> More than one device</h3>
         <ol>
           <li style={li}>Main device: <b>Settings → Export backup</b>, send yourself the file.</li>
           <li style={li}>New device: open the app, set any passphrase, then <b>Settings → Restore backup</b> and pick the file.</li>
@@ -84,7 +86,7 @@ export default function Help() {
       </div>
 
       <div className="card" style={card}>
-        <h3><span className="ttl-ico">💡</span> Good to know</h3>
+        <h3><Icon name="bulb" /> Good to know</h3>
         <ul>
           <li style={li}>The app updates itself automatically to the latest version.</li>
           <li style={li}>Keep your recovery code and an encrypted backup — your safety net.</li>
