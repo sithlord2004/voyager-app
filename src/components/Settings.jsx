@@ -1,0 +1,117 @@
+import { useEffect, useRef, useState } from 'react'
+import { getSyncConfig, setSyncConfig, syncNow } from '../lib/sync.js'
+import { exportBackup, importBackup } from '../lib/backup.js'
+import { passkeySupported, isPasskeyEnabled, enablePasskey, disablePasskey } from '../lib/webauthn.js'
+
+// Opt-in cloud sync configuration. Off by default — the app is on-device first.
+export default function Settings({ vaultKey }) {
+  const [cfg, setCfg] = useState(null)
+  const [msg, setMsg] = useState('')
+  const [backupMsg, setBackupMsg] = useState('')
+  const [pkEnabled, setPkEnabled] = useState(false)
+  const [pkMsg, setPkMsg] = useState('')
+  const fileRef = useRef(null)
+
+  useEffect(() => { isPasskeyEnabled().then(setPkEnabled) }, [])
+  async function togglePasskey() {
+    setPkMsg('')
+    try {
+      if (pkEnabled) { await disablePasskey(); setPkEnabled(false); setPkMsg('Passkey unlock removed from this device.') }
+      else { await enablePasskey(vaultKey); setPkEnabled(true); setPkMsg('✅ Face ID / passkey unlock enabled on this device.') }
+    } catch (e) { setPkMsg('⚠️ ' + e.message) }
+  }
+
+  async function doExport() {
+    try { await exportBackup(vaultKey); setBackupMsg('✅ Encrypted backup downloaded.') }
+    catch (e) { setBackupMsg('⚠️ ' + e.message) }
+  }
+  async function doImport(file) {
+    if (!file) return
+    const pass = prompt('Enter the passphrase that protected this backup:')
+    if (!pass) return
+    setBackupMsg('Restoring…')
+    try {
+      const text = await file.text()
+      await importBackup(text, pass)
+      setBackupMsg('✅ Restored. Reloading…')
+      setTimeout(() => location.reload(), 900)
+    } catch (e) { setBackupMsg('⚠️ ' + e.message) }
+  }
+
+  useEffect(() => { getSyncConfig().then(setCfg) }, [])
+  if (!cfg) return null
+
+  const update = patch => setCfg({ ...cfg, ...patch })
+  async function save() { await setSyncConfig(cfg); setMsg('Saved.'); setTimeout(() => setMsg(''), 1800) }
+  async function test() {
+    await setSyncConfig(cfg)
+    setMsg('Syncing…')
+    try { const r = await syncNow(); setMsg(`✅ Synced · pushed ${r.pushed}, pulled ${r.pulled}`) }
+    catch (e) { setMsg('⚠️ ' + e.message) }
+  }
+
+  return (
+    <div>
+      <div className="topbar"><div><h2>Settings ⚙️</h2><div className="sub">Cloud sync is optional — your data stays on-device unless you turn it on.</div></div></div>
+
+      <div className="card" style={{ maxWidth: 620 }}>
+        <h3><span className="ttl-ico">☁️</span> Encrypted cloud sync</h3>
+        <p className="desc">When on, only the <b>already-encrypted</b> document blobs (plus expiry metadata for alerts) are uploaded. The server can never read your documents.</p>
+
+        <label className="switch-row">
+          <span>Enable sync</span>
+          <input type="checkbox" checked={cfg.enabled} onChange={e => update({ enabled: e.target.checked })} />
+        </label>
+
+        <label>Sync endpoint
+          <input value={cfg.endpoint} onChange={e => update({ endpoint: e.target.value })}
+                 placeholder="https://your-app.vercel.app/api" />
+        </label>
+        <label>Family ID
+          <input value={cfg.familyId} onChange={e => update({ familyId: e.target.value })}
+                 placeholder="maini-family" />
+        </label>
+        <label>Access token
+          <input type="password" value={cfg.token} onChange={e => update({ token: e.target.value })}
+                 placeholder="shared secret from your backend" />
+        </label>
+
+        <div className="modal-actions" style={{ marginTop: 8 }}>
+          <button className="btn ghost" onClick={save}>Save</button>
+          <button className="btn" onClick={test} disabled={!cfg.enabled}>☁️ Sync now</button>
+        </div>
+        {msg && <div className="desc" style={{ marginTop: 12 }}>{msg}</div>}
+        {cfg.lastSync ? <div className="desc">Last sync: {new Date(cfg.lastSync).toLocaleString()}</div> : null}
+      </div>
+
+      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
+        <h3><span className="ttl-ico">💾</span> Encrypted backup</h3>
+        <p className="desc">Download an encrypted <code>.voyager</code> file with everything in your vault. Document blobs and metadata are encrypted — the file is useless without your passphrase or recovery code. Restore it on a new device or after a wipe.</p>
+        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
+          <button className="btn" onClick={doExport}>⬇️ Export backup</button>
+          <button className="btn ghost" onClick={() => fileRef.current?.click()}>⬆️ Restore backup</button>
+          <input ref={fileRef} type="file" accept=".voyager,application/json" hidden
+                 onChange={e => doImport(e.target.files[0])} />
+        </div>
+        {backupMsg && <div className="desc" style={{ marginTop: 12 }}>{backupMsg}</div>}
+      </div>
+
+      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
+        <h3><span className="ttl-ico">👤</span> Face ID / passkey unlock</h3>
+        <p className="desc">Add a device passkey (Face ID, Touch ID, Windows Hello) for quick unlock. Your passphrase stays the master key; this is an extra, device-bound shortcut. Needs a supporting browser.</p>
+        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
+          <button className="btn" onClick={togglePasskey} disabled={!passkeySupported()}>
+            {pkEnabled ? '🚫 Remove passkey' : '👤 Enable on this device'}
+          </button>
+          {!passkeySupported() && <span className="desc">Not available in this browser.</span>}
+        </div>
+        {pkMsg && <div className="desc" style={{ marginTop: 12 }}>{pkMsg}</div>}
+      </div>
+
+      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
+        <h3><span className="ttl-ico">🔑</span> Passphrase &amp; recovery</h3>
+        <p className="desc">Your vault is protected by your passphrase, with a one-time <b>recovery code</b> shown at setup as the backup way in. If you forget your passphrase, choose “Forgot passphrase?” on the lock screen and enter that code to set a new one. Keep the code somewhere safe — anyone who has it can open the vault.</p>
+      </div>
+    </div>
+  )
+}
