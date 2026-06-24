@@ -7,7 +7,8 @@ const NAV = [
   ['vault', '🔐', 'Document Vault'],
   ['packing', '🎒', 'Packing'],
   ['emergency', '🆘', 'Emergency'],
-  ['settings', '⚙️', 'Settings']
+  ['settings', '⚙️', 'Settings'],
+  ['help', '📖', 'How to use']
 ]
 
 function initials(name) {
