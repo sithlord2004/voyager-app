@@ -1,129 +1,190 @@
-import { useEffect, useRef, useState } from 'react'
-import { getSyncConfig, setSyncConfig, syncNow } from '../lib/sync.js'
-import { exportBackup, importBackup } from '../lib/backup.js'
-import { passkeySupported, isPasskeyEnabled, enablePasskey, disablePasskey } from '../lib/webauthn.js'
-import { db, newId, getSetting, setSetting } from '../lib/db.js'
+import { useEffect, useState } from 'react'
+import { geocode, tripWeather, WMO, FLAGS } from '../lib/weather.js'
+import { db, daysUntil, createTrip } from '../lib/db.js'
+import { parseItinerarySmart, extractTextFromFile } from '../lib/itinerary.js'
+import { getSyncConfig } from '../lib/sync.js'
 
-const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
-const makeInitials = n => (n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?'
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+function fmtRange(s, e) {
+  const a = new Date(s + 'T00:00'), b = new Date(e + 'T00:00')
+  return `${MONTHS[a.getMonth()]} ${a.getDate()} – ${MONTHS[b.getMonth()]} ${b.getDate()}, ${b.getFullYear()}`
+}
 
-export default function Settings({ vaultKey, people = [], reload }) {
-  const [cfg, setCfg] = useState(null)
-  const [msg, setMsg] = useState('')
-  const [backupMsg, setBackupMsg] = useState('')
-  const [pkEnabled, setPkEnabled] = useState(false)
-  const [pkMsg, setPkMsg] = useState('')
-  const [name, setName] = useState('')
-  const [nameMsg, setNameMsg] = useState('')
-  const [newPerson, setNewPerson] = useState('')
-  const [confirmId, setConfirmId] = useState(null)
-  const [theme, setTheme] = useState('auto')
-  const fileRef = useRef(null)
+function TripRow({ trip, docCount, onDelete }) {
+  const [w, setW] = useState(null)
+  const [confirmDel, setConfirmDel] = useState(false)
+  useEffect(() => {
+    (async () => {
+      const p = await geocode(trip.destinationCity)
+      if (!p) return
+      const tw = await tripWeather(p.latitude, p.longitude, trip.startDate, trip.endDate)
+      setW({ ...tw, flag: FLAGS[p.country_code] || '' })
+    })()
+  }, [trip.id])
 
-  useEffect(() => { isPasskeyEnabled().then(setPkEnabled) }, [])
-  useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
-  useEffect(() => { getSetting('theme').then(t => setTheme(t || 'auto')) }, [])
-  async function applyTheme(t) {
-    setTheme(t)
-    document.documentElement.setAttribute('data-theme', t)
-    await setSetting('theme', t)
-  }
+  const du = daysUntil(trip.startDate)
+  const cd = du < 0 ? 'past' : du === 0 ? 'today' : `in ${du} days`
+  const ic = w ? (WMO[w.code] || ['',''])[0] : ''
 
-  async function addPerson() {
-    const nm = newPerson.trim()
-    if (!nm) return
-    await db.people.add({ id: newId(), name: nm, initials: makeInitials(nm), color: PALETTE[people.length % PALETTE.length], relationship: 'family' })
-    setNewPerson('')
+  return (
+    <div className="trip-row">
+      <div className="trip-flag">{w?.flag || '🗺️'}</div>
+      <div className="info">
+        <b>{trip.destinationCity} {w?.flag || ''}</b>
+        <small>{fmtRange(trip.startDate, trip.endDate)} · {trip.travellerIds.length} travellers{trip.flight ? ' · ' + trip.flight.number : ''}</small>
+      </div>
+      <div className="cnt">
+        <div><b>{docCount}</b><small>docs</small></div>
+        <div><b>{w ? `${ic} ${w.temp}°` : '…'}</b><small>{w ? (w.mode === 'forecast' ? '🟢 forecast' : '📅 seasonal') : 'weather'}</small></div>
+        <div><b>{trip.flight ? '✈️' : '—'}</b><small>{trip.flight ? 'tracked' : 'no flight'}</small></div>
+      </div>
+      <div className="countdown">{cd}</div>
+      <button title="Delete trip" onClick={() => confirmDel ? onDelete(trip) : setConfirmDel(true)}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: confirmDel ? 12 : 16, marginLeft: 10, color: confirmDel ? '#f87171' : 'inherit', opacity: 0.85 }}>
+        {confirmDel ? 'Confirm?' : '🗑'}</button>
+    </div>
+  )
+}
+
+export default function Trips({ trips, documents, reload }) {
+  const [importing, setImporting] = useState(false)
+  const [adding, setAdding] = useState(false)
+  async function onDelete(trip) {
+    await db.trips.delete(trip.id)
     reload?.()
   }
-  async function removePerson(id) {
-    if (confirmId !== id) { setConfirmId(id); return }
-    await db.people.delete(id)
-    setConfirmId(null)
-    reload?.()
-  }
-  async function saveName() {
-    await setSetting('displayName', name.trim())
-    setNameMsg('✅ Saved. Reopen the Dashboard to see the greeting.')
-    setTimeout(() => setNameMsg(''), 2600)
-  }
-  async function togglePasskey() {
-    setPkMsg('')
-    try {
-      if (pkEnabled) { await disablePasskey(); setPkEnabled(false); setPkMsg('Passkey unlock removed from this device.') }
-      else { await enablePasskey(vaultKey); setPkEnabled(true); setPkMsg('✅ Face ID / passkey unlock enabled on this device.') }
-    } catch (e) { setPkMsg('⚠️ ' + e.message) }
-  }
+  return (
+    <div>
+      <div className="topbar">
+        <div><h2>Trips</h2><div className="sub">Everything for each journey in one place.</div></div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="btn ghost" onClick={() => setAdding(true)}>＋ Add manually</button>
+          <button className="btn" onClick={() => setImporting(true)}>📩 Import itinerary</button>
+        </div>
+      </div>
+      {trips.map(t => (
+        <TripRow key={t.id} trip={t} onDelete={onDelete} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
+      ))}
+      <div className="desc" style={{ marginTop: 8 }}>
+        🟢 <b>forecast</b> = live forecast (trip within ~14 days) &nbsp;·&nbsp; 📅 <b>seasonal</b> = historical average for those dates
+      </div>
+      {importing && <ImportModal onClose={() => setImporting(false)} onSaved={() => { setImporting(false); reload?.() }} />}
+      {adding && <AddTripModal onClose={() => setAdding(false)} onSaved={() => { setAdding(false); reload?.() }} />}
+    </div>
+  )
+}
 
-  async function doExport() {
-    try { await exportBackup(vaultKey); setBackupMsg('✅ Encrypted backup downloaded.') }
-    catch (e) { setBackupMsg('⚠️ ' + e.message) }
-  }
-  async function doImport(file) {
-    if (!file) return
-    const pass = prompt('Enter the passphrase that protected this backup:')
-    if (!pass) return
-    setBackupMsg('Restoring…')
-    try {
-      const text = await file.text()
-      await importBackup(text, pass)
-      setBackupMsg('✅ Restored. Reloading…')
-      setTimeout(() => location.reload(), 900)
-    } catch (e) { setBackupMsg('⚠️ ' + e.message) }
-  }
+function AddTripModal({ onClose, onSaved }) {
+  const [city, setCity] = useState('')
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [flightNo, setFlightNo] = useState('')
+  const [airline, setAirline] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  useEffect(() => { getSyncConfig().then(setCfg) }, [])
-  if (!cfg) return null
-
-  const update = patch => setCfg({ ...cfg, ...patch })
-  async function save() { await setSyncConfig(cfg); setMsg('Saved.'); setTimeout(() => setMsg(''), 1800) }
-  async function test() {
-    await setSyncConfig(cfg)
-    setMsg('Syncing…')
-    try { const r = await syncNow(); setMsg(`✅ Synced · pushed ${r.pushed}, pulled ${r.pulled}`) }
-    catch (e) { setMsg('⚠️ ' + e.message) }
+  async function save() {
+    if (!city.trim() || !start) return
+    setBusy(true)
+    let countryCode = null
+    try { const p = await geocode(city.trim()); if (p) countryCode = p.country_code } catch {}
+    await createTrip({
+      destinationCity: city.trim(),
+      startDate: start, endDate: end || start,
+      countryCode,
+      flight: flightNo.trim() ? { number: flightNo.trim().toUpperCase(), airline: airline.trim(), depAirport: '', arrAirport: '', depTime: '' } : null
+    })
+    setBusy(false)
+    onSaved()
   }
 
   return (
-    <div>
-      <div className="topbar"><div><h2>Settings ⚙️</h2><div className="sub">Cloud sync is optional — your data stays on-device unless you turn it on.</div></div></div>
-
-      <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
-        <h3><span className="ttl-ico">🎨</span> Appearance</h3>
-        <p className="desc">Choose a theme. Auto follows your device's light/dark setting.</p>
-        <div className="seg">
-          {['auto', 'light', 'dark'].map(t => (
-            <button key={t} className={theme === t ? 'active' : ''} onClick={() => applyTheme(t)}>
-              {t === 'auto' ? '🌗 Auto' : t === 'light' ? '☀️ Light' : '🌙 Dark'}
-            </button>
-          ))}
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h3>Add a trip</h3>
+        <label>Destination city <input value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. Lisbon" /></label>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <label style={{ flex: 1 }}>Start date <input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
+          <label style={{ flex: 1 }}>End date <input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
+        </div>
+        <label>Flight number (optional) <input value={flightNo} onChange={e => setFlightNo(e.target.value)} placeholder="e.g. TP1234" /></label>
+        <label>Airline (optional) <input value={airline} onChange={e => setAirline(e.target.value)} placeholder="e.g. TAP Air Portugal" /></label>
+        <div className="modal-actions">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn" onClick={save} disabled={busy || !city.trim() || !start}>{busy ? 'Saving…' : '＋ Create trip'}</button>
         </div>
       </div>
+    </div>
+  )
+}
 
-      <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
-        <h3><span className="ttl-ico">👋</span> Your name</h3>
-        <p className="desc">Used to greet you on the dashboard. This is per-device, so each person who installs the app sets their own.</p>
-        <label>Display name
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Amit" />
-        </label>
-        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
-          <button className="btn" onClick={saveName}>Save name</button>
-        </div>
-        {nameMsg && <div className="desc" style={{ marginTop: 12 }}>{nameMsg}</div>}
+function ImportModal({ onClose, onSaved }) {
+  const [text, setText] = useState('')
+  const [draft, setDraft] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  async function runParse(t) {
+    const cfg = await getSyncConfig()
+    setDraft(await parseItinerarySmart(t, cfg))
+  }
+  async function onFile(file) {
+    if (!file) return
+    setBusy(true)
+    try { const t = await extractTextFromFile(file); setText(t); await runParse(t) }
+    catch { setDraft(null) }
+    setBusy(false)
+  }
+  async function parsePasted() { setBusy(true); await runParse(text); setBusy(false) }
+  function field(k, v) { setDraft({ ...draft, [k]: v }) }
+
+  async function save() {
+    await createTrip({
+      destinationCity: draft.destinationCity, startDate: draft.startDate, endDate: draft.endDate,
+      flight: draft.flightNumber ? {
+        number: draft.flightNumber, airline: draft.airline,
+        depAirport: draft.depAirport, arrAirport: draft.arrAirport, depTime: ''
+      } : null
+    })
+    onSaved()
+  }
+
+  const c = draft?.confidence
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h3>Import itinerary</h3>
+        {!draft ? (
+          <>
+            <p className="desc">Upload a booking PDF/email, or paste the confirmation text. We’ll pull out the trip — you confirm before saving.</p>
+            <div className="file-row">
+              <label className="mini">📁 Upload file
+                <input type="file" accept=".pdf,.txt,.eml,.ics" hidden onChange={e => onFile(e.target.files[0])} />
+              </label>
+              <span className="file-name">{busy ? 'Reading…' : 'PDF, .eml, .txt'}</span>
+            </div>
+            <label>…or paste text
+              <textarea rows={5} value={text} onChange={e => setText(e.target.value)} placeholder="Paste your booking confirmation here" />
+            </label>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={onClose}>Cancel</button>
+              <button className="btn" onClick={parsePasted} disabled={!text.trim()}>Extract trip →</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="desc">{draft.source === 'llm' ? '✨ AI-assisted extraction. ' : `Found ${c?.dates ?? 0} date(s), ${c?.flights ?? 0} flight(s). `}Check and edit:</p>
+            <label>Destination <input value={draft.destinationCity} onChange={e => field('destinationCity', e.target.value)} placeholder="City" /></label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <label style={{ flex: 1 }}>Start <input type="date" value={draft.startDate} onChange={e => field('startDate', e.target.value)} /></label>
+              <label style={{ flex: 1 }}>End <input type="date" value={draft.endDate} onChange={e => field('endDate', e.target.value)} /></label>
+            </div>
+            <label>Flight number <input value={draft.flightNumber} onChange={e => field('flightNumber', e.target.value)} placeholder="e.g. JL044" /></label>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setDraft(null)}>← Back</button>
+              <button className="btn" onClick={save} disabled={!draft.destinationCity || !draft.startDate}>＋ Create trip</button>
+            </div>
+          </>
+        )}
       </div>
-
-      <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
-        <h3><span className="ttl-ico">👨‍👩‍👧‍👦</span> Family members</h3>
-        <p className="desc">Who documents can belong to. Add your real family and remove the demo names.</p>
-        {people.map(p => (
-          <div key={p.id} className="alert" style={{ marginBottom: 8 }}>
-            <div className="ai" style={{ background: p.color || '#3b82f6', color: '#fff', fontWeight: 700, fontSize: 13 }}>{p.initials || makeInitials(p.name)}</div>
-            <div className="body"><b>{p.name}</b><small>{p.relationship || 'family'}</small></div>
-            <button className="mini" style={{ color: '#f87171' }} onClick={() => removePerson(p.id)}>
-              {confirmId === p.id ? 'Tap again' : '🗑 Remove'}
-            </button>
-          </div>
-        ))}
-        <div className="file-row" style={{ marginTop: 6 }}>
-          <input value={newPerson} onChange={e => setNewPerson(e.target.value)} placeholder="Add a person's name"
-            onKeyDown={e => e.key === 'Enter'
+    </div>
+  )
+}
