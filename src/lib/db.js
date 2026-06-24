@@ -1,28 +1,23 @@
-// ---------------------------------------------------------------------------
-// IndexedDB schema (Dexie). Document file bytes are stored ENCRYPTED in the
-// `blob` field; the metadata (type, owner, expiry) is kept in clear so the
-// dashboard can show expiry badges without unlocking every file.
-// ---------------------------------------------------------------------------
 import Dexie from 'dexie'
 
 export const db = new Dexie('voyager')
 
 db.version(1).stores({
-  settings: 'key',                              // key/value: vault salt, verifier, etc.
+  settings: 'key',
   people: 'id, name',
   trips: 'id, startDate',
   documents: 'id, personId, type, tripId, expiryDate',
   packing: 'id, tripId, category'
 })
-
-// v2 adds sync tracking: `dirty` (1 = needs upload) and `updatedAt` indexes.
 db.version(2).stores({
   documents: 'id, personId, type, tripId, expiryDate, dirty, updatedAt'
+})
+db.version(3).stores({
+  trips: 'id, startDate, dirty, updatedAt'
 })
 
 export const newId = () => 'x' + crypto.randomUUID().slice(0, 12)
 
-// Create or update a document and mark it dirty for the next sync.
 export async function saveDocument(doc) {
   const rec = { ...doc, updatedAt: Date.now(), dirty: 1 }
   if (!rec.id) rec.id = newId()
@@ -30,21 +25,22 @@ export async function saveDocument(doc) {
   return rec
 }
 
-// Create a trip (used by the itinerary importer and the new-trip flow).
 export async function createTrip(trip) {
-  const rec = { id: newId(), travellerIds: [], flight: null, ...trip }
+  const rec = { id: newId(), travellerIds: [], flight: null, ...trip, updatedAt: Date.now(), dirty: 1 }
   await db.trips.add(rec)
   return rec
 }
 
-// Clear the dirty flag once records are confirmed uploaded.
-export async function markSynced(ids) {
-  await db.transaction('rw', db.documents, async () => {
-    for (const id of ids) await db.documents.update(id, { dirty: 0 })
+export async function deleteTrip(id) {
+  await db.trips.update(id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
+}
+
+export async function markSynced(table, ids) {
+  await db.transaction('rw', db[table], async () => {
+    for (const id of ids) await db[table].update(id, { dirty: 0 })
   })
 }
 
-// ---- Settings helpers ----
 export async function getSetting(key) {
   const row = await db.settings.get(key)
   return row?.value
@@ -56,7 +52,6 @@ export async function isVaultInitialised() {
   return !!(await getSetting('vault'))
 }
 
-// ---- Seed demo data so the app isn't empty on first unlock ----
 export async function seedIfEmpty() {
   if (await db.people.count()) return
   await db.people.bulkAdd([
@@ -70,8 +65,6 @@ export async function seedIfEmpty() {
     { id: 't2', destinationCity: 'Barcelona', countryCode: 'ES', startDate: '2026-09-14', endDate: '2026-09-21', travellerIds: ['p1','p2'], flight: null },
     { id: 't3', destinationCity: 'Banff', countryCode: 'CA', startDate: '2026-12-20', endDate: '2026-12-30', travellerIds: ['p1','p2','p3','p4'], flight: { airline: 'Air Canada', number: 'AC859', depAirport: 'LHR', arrAirport: 'YYC', depTime: '13:05' } }
   ])
-  // Documents start as metadata-only stubs; real encrypted bytes are added
-  // when the user scans a file in the Vault.
   await db.documents.bulkAdd([
     { id: 'd1', personId: 'p1', type: 'Passport', title: 'Passport', expiryDate: '2031-03-12', tripId: null, blob: null },
     { id: 'd2', personId: 'p2', type: 'Passport', title: 'Passport', expiryDate: '2031-07-08', tripId: null, blob: null },
@@ -90,7 +83,6 @@ export async function seedIfEmpty() {
   ])
 }
 
-// Days until a date string (negative = past).
 export function daysUntil(dateStr) {
   if (!dateStr) return Infinity
   return Math.round((new Date(dateStr + 'T00:00') - new Date()) / 86400000)
