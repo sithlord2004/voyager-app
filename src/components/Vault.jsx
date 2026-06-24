@@ -33,6 +33,7 @@ async function makeThumb(file) {
 
 function DocCard({ doc, vaultKey, ownerName, onView, onDelete }) {
   const [thumb, setThumb] = useState(null)
+  const [confirmDel, setConfirmDel] = useState(false)
   useEffect(() => {
     let url
     if (doc.thumb) {
@@ -58,7 +59,10 @@ function DocCard({ doc, vaultKey, ownerName, onView, onDelete }) {
         {doc.blob
           ? <button className="mini" onClick={() => onView(doc)}>👁 View</button>
           : <span className="mini muted">No file attached</span>}
-        <button className="mini" style={{ marginLeft: 8, color: '#f87171' }} onClick={() => onDelete(doc)}>🗑 Delete</button>
+        <button className="mini" style={{ marginLeft: 8, color: '#f87171' }}
+          onClick={() => confirmDel ? onDelete(doc) : setConfirmDel(true)}>
+          {confirmDel ? 'Tap again to confirm' : '🗑 Delete'}
+        </button>
       </div>
     </div>
   )
@@ -89,8 +93,8 @@ export default function Vault({ vaultKey, documents, people, reload }) {
   function flash(t) { setMsg(t); reload(); setTimeout(() => setMsg(''), 2600) }
 
   // Soft-delete: mark removed + dirty so it also clears from synced devices.
+  // (No window.confirm — it's blocked in installed PWAs; the button two-taps instead.)
   async function onDelete(doc) {
-    if (!window.confirm(`Delete "${doc.title}"? This removes it from your synced devices too.`)) return
     await db.documents.update(doc.id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
     if (syncOn) { try { await syncNow() } catch {} }
     flash('🗑 Deleted')
