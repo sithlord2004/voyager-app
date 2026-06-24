@@ -45,7 +45,7 @@ const NUMBERS = {
 const EMBASSY = {
   GB: { name: 'United Kingdom', url: 'https://www.gov.uk/world/embassies' },
   US: { name: 'United States', url: 'https://www.usembassy.gov/' },
-  AU: { name: 'Australia', url: 'https://www.dfat.gov.au/about-us/our-locations/missions' },
+  AU: { name: 'Australia', url: 'https://www.dfat.gov.au/about-us/our-locations/missions/australian-high-commission-united-kingdom' },
   CA: { name: 'Canada', url: 'https://travel.gc.ca/assistance/embassies-consulates' },
   IE: { name: 'Ireland', url: 'https://www.ireland.ie/en/dfa/embassies/' },
   NZ: { name: 'New Zealand', url: 'https://www.mfat.govt.nz/en/embassies/' },
