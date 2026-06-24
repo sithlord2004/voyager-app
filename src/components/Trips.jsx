@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { geocode, tripWeather, WMO, FLAGS } from '../lib/weather.js'
-import { db, daysUntil, createTrip } from '../lib/db.js'
+import { daysUntil, createTrip, deleteTrip } from '../lib/db.js'
 import { parseItinerarySmart, extractTextFromFile } from '../lib/itinerary.js'
 import { getSyncConfig } from '../lib/sync.js'
 
