@@ -1,21 +1,20 @@
-// POST /api/sync  — push dirty encrypted docs, pull remote changes since `since`.
-// Deploy as a Vercel/Netlify serverless function (Node 18+).
-//
-// Auth: a shared bearer token (SYNC_TOKEN). For a family app this is simple and
-// sufficient; swap for per-user auth later if you open it up.
-//
-// The `payload` we store is the client's already-encrypted record — the server
-// cannot read any document. We also copy a few clear fields (expiry, type) into
-// columns so the expiry-alert job can query them without decryption.
-
+// POST /api/sync — push dirty encrypted docs, pull remote changes since `since`.
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY   // service role — bypasses RLS, server-only
+  process.env.SUPABASE_SERVICE_KEY
 )
 
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+}
+
 export default async function handler(req, res) {
+  setCors(res)
+  if (req.method === 'OPTIONS') return res.status(204).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
   const auth = req.headers.authorization || ''
@@ -24,7 +23,6 @@ export default async function handler(req, res) {
   const { familyId, since = 0, documents = [] } = req.body || {}
   if (!familyId) return res.status(400).json({ error: 'familyId required' })
 
-  // 1) Upsert incoming (already-encrypted) docs.
   if (documents.length) {
     const rows = documents.map(d => ({
       family_id: familyId,
@@ -34,13 +32,12 @@ export default async function handler(req, res) {
       doc_type: d.type || null,
       title: d.title || null,
       deleted: !!d.deleted,
-      payload: d                       // ciphertext + metadata, stored verbatim
+      payload: d
     }))
     const { error } = await supabase.from('documents').upsert(rows, { onConflict: 'family_id,id' })
     if (error) return res.status(500).json({ error: error.message })
   }
 
-  // 2) Return everything changed since the client's last sync.
   const { data, error } = await supabase
     .from('documents')
     .select('payload, updated_at')
