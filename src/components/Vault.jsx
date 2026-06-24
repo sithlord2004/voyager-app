@@ -3,6 +3,7 @@ import { encryptBytes, decryptBytes } from '../lib/crypto.js'
 import { db, daysUntil, saveDocument } from '../lib/db.js'
 import { getSyncConfig, syncNow } from '../lib/sync.js'
 import { scanPassport } from '../lib/ocr.js'
+import { Icon } from './Icon.jsx'
 
 const TYPES =['Passport', 'Visa', 'Driving licence', 'Travel insurance', 'Vaccination record', 'Booking', 'Flight ticket', 'Other']
 const ICONS = {
@@ -92,8 +93,6 @@ export default function Vault({ vaultKey, documents, people, reload }) {
   }
   function flash(t) { setMsg(t); reload(); setTimeout(() => setMsg(''), 2600) }
 
-  // Soft-delete: mark removed + dirty so it also clears from synced devices.
-  // (No window.confirm — it's blocked in installed PWAs; the button two-taps instead.)
   async function onDelete(doc) {
     await db.documents.update(doc.id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
     if (syncOn) { try { await syncNow() } catch {} }
@@ -113,7 +112,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
       </div>
 
       <div className="alert ok banner">
-        <div className="ai">🛡️</div>
+        <div className="ai"><Icon name="shield" size={18} /></div>
         <div className="body"><b>Vault unlocked</b>
           <small>Files are AES-256 encrypted with your passphrase-derived key before being stored{syncOn ? ' or synced' : ''}.</small></div>
       </div>
@@ -146,7 +145,6 @@ function AddDocModal({ people, vaultKey, onClose, onSaved }) {
   const [number, setNumber] = useState('')
   const [ocrMsg, setOcrMsg] = useState('')
 
-  // Read the passport MRZ and pre-fill the form (all in-browser).
   async function autoFill() {
     if (!file) return
     setOcrMsg('Reading passport… (first run downloads the OCR model)')
