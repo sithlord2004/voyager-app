@@ -3,6 +3,7 @@ import { geocode, tripWeather, WMO, FLAGS } from '../lib/weather.js'
 import { daysUntil, createTrip, updateTrip, deleteTrip } from '../lib/db.js'
 import { parseItinerarySmart, extractTextFromFile } from '../lib/itinerary.js'
 import { getSyncConfig } from '../lib/sync.js'
+import { Icon } from './Icon.jsx'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const MODES = [['flight', '✈️', 'Flight'], ['train', '🚆', 'Train'], ['car', '🚗', 'Car/Drive'], ['ferry', '⛴️', 'Ferry'], ['bus', '🚌', 'Bus']]
@@ -54,10 +55,13 @@ function TripRow({ trip, docCount, onDelete, onEdit }) {
         <div><b>{legs.length || '—'}</b><small>{legs.length ? 'legs' : 'no legs'}</small></div>
       </div>
       <div className="countdown">{cd}</div>
-      <button className="mini" title="Edit trip" onClick={() => onEdit(trip)} style={{ marginLeft: 10 }}>✏️</button>
-      <button title="Delete trip" onClick={() => confirmDel ? onDelete(trip) : setConfirmDel(true)}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: confirmDel ? 12 : 16, marginLeft: 8, color: confirmDel ? '#f87171' : 'inherit', opacity: 0.85 }}>
-        {confirmDel ? 'Confirm?' : '🗑'}</button>
+      <div className="trip-actions">
+        <button className="icon-btn" title="Edit trip" onClick={() => onEdit(trip)}><Icon name="edit" size={17} /></button>
+        <button className="icon-btn" title="Delete trip" onClick={() => confirmDel ? onDelete(trip) : setConfirmDel(true)}
+          style={confirmDel ? { color: '#f87171' } : null}>
+          {confirmDel ? <span style={{ fontSize: 11, fontWeight: 700 }}>Sure?</span> : <Icon name="trash" size={17} />}
+        </button>
+      </div>
     </div>
   )
 }
