@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { geocode, tripWeather, WMO, FLAGS } from '../lib/weather.js'
-import { daysUntil, createTrip, deleteTrip } from '../lib/db.js'
+import { daysUntil, createTrip, updateTrip, deleteTrip } from '../lib/db.js'
 import { parseItinerarySmart, extractTextFromFile } from '../lib/itinerary.js'
 import { getSyncConfig } from '../lib/sync.js'
 
@@ -19,7 +19,7 @@ function tripLegs(trip) {
   return []
 }
 
-function TripRow({ trip, docCount, onDelete }) {
+function TripRow({ trip, docCount, onDelete, onEdit }) {
   const [w, setW] = useState(null)
   const [confirmDel, setConfirmDel] = useState(false)
   useEffect(() => {
@@ -54,8 +54,9 @@ function TripRow({ trip, docCount, onDelete }) {
         <div><b>{legs.length || '—'}</b><small>{legs.length ? 'legs' : 'no legs'}</small></div>
       </div>
       <div className="countdown">{cd}</div>
+      <button className="mini" title="Edit trip" onClick={() => onEdit(trip)} style={{ marginLeft: 10 }}>✏️</button>
       <button title="Delete trip" onClick={() => confirmDel ? onDelete(trip) : setConfirmDel(true)}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: confirmDel ? 12 : 16, marginLeft: 10, color: confirmDel ? '#f87171' : 'inherit', opacity: 0.85 }}>
+        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: confirmDel ? 12 : 16, marginLeft: 8, color: confirmDel ? '#f87171' : 'inherit', opacity: 0.85 }}>
         {confirmDel ? 'Confirm?' : '🗑'}</button>
     </div>
   )
@@ -64,6 +65,7 @@ function TripRow({ trip, docCount, onDelete }) {
 export default function Trips({ trips, documents, reload }) {
   const [importing, setImporting] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState(null)
   async function onDelete(trip) {
     await deleteTrip(trip.id)
     reload?.()
@@ -78,23 +80,26 @@ export default function Trips({ trips, documents, reload }) {
         </div>
       </div>
       {trips.map(t => (
-        <TripRow key={t.id} trip={t} onDelete={onDelete} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
+        <TripRow key={t.id} trip={t} onDelete={onDelete} onEdit={setEditing} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
       ))}
       <div className="desc" style={{ marginTop: 8 }}>
         🟢 <b>forecast</b> = live forecast (trip within ~14 days) &nbsp;·&nbsp; 📅 <b>seasonal</b> = historical average for those dates
       </div>
       {importing && <ImportModal onClose={() => setImporting(false)} onSaved={() => { setImporting(false); reload?.() }} />}
-      {adding && <AddTripModal onClose={() => setAdding(false)} onSaved={() => { setAdding(false); reload?.() }} />}
+      {(adding || editing) && <AddTripModal trip={editing}
+        onClose={() => { setAdding(false); setEditing(null) }}
+        onSaved={() => { setAdding(false); setEditing(null); reload?.() }} />}
     </div>
   )
 }
 
-function AddTripModal({ onClose, onSaved }) {
-  const [city, setCity] = useState('')
-  const [start, setStart] = useState('')
-  const [end, setEnd] = useState('')
-  const [legs, setLegs] = useState([{ date: '', from: '', to: '', mode: 'flight', number: '' }])
-  const [stays, setStays] = useState([])
+function AddTripModal({ onClose, onSaved, trip }) {
+  const seedLegs = trip ? tripLegs(trip) : []
+  const [city, setCity] = useState(trip?.destinationCity || '')
+  const [start, setStart] = useState(trip?.startDate || '')
+  const [end, setEnd] = useState(trip?.endDate || '')
+  const [legs, setLegs] = useState(seedLegs.length ? seedLegs.map(l => ({ date: l.date || '', from: l.from || '', to: l.to || '', mode: l.mode || 'flight', number: l.number || '' })) : [{ date: '', from: '', to: '', mode: 'flight', number: '' }])
+  const [stays, setStays] = useState(trip?.stays || [])
   const [busy, setBusy] = useState(false)
 
   const setLeg = (i, patch) => setLegs(legs.map((l, idx) => idx === i ? { ...l, ...patch } : l))
@@ -113,11 +118,10 @@ function AddTripModal({ onClose, onSaved }) {
     const cleanLegs = legs
       .filter(l => l.from || l.to || l.number || l.date)
       .map(l => ({ ...l, from: l.from.trim().toUpperCase(), to: l.to.trim().toUpperCase(), number: l.number.trim().toUpperCase() }))
-    const cleanStays = stays.filter(s => s.name.trim()).map(s => ({ ...s, name: s.name.trim(), ref: s.ref.trim() }))
-    await createTrip({
-      destinationCity: city.trim(), startDate: start, endDate: end || start,
-      countryCode, legs: cleanLegs, stays: cleanStays
-    })
+    const cleanStays = stays.filter(s => s.name.trim()).map(s => ({ ...s, name: s.name.trim(), ref: (s.ref || '').trim() }))
+    const fields = { destinationCity: city.trim(), startDate: start, endDate: end || start, countryCode, legs: cleanLegs, stays: cleanStays }
+    if (trip) await updateTrip(trip.id, fields)
+    else await createTrip(fields)
     setBusy(false)
     onSaved()
   }
@@ -127,7 +131,7 @@ function AddTripModal({ onClose, onSaved }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
-        <h3>Add a trip</h3>
+        <h3>{trip ? 'Edit trip' : 'Add a trip'}</h3>
         <label>Main destination (for weather) <input value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. London" /></label>
         <div style={{ display: 'flex', gap: 10 }}>
           <label style={{ flex: 1 }}>Leaving <input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
@@ -179,7 +183,7 @@ function AddTripModal({ onClose, onSaved }) {
 
         <div className="modal-actions">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn" onClick={save} disabled={busy || !city.trim() || !start}>{busy ? 'Saving…' : '＋ Create trip'}</button>
+          <button className="btn" onClick={save} disabled={busy || !city.trim() || !start}>{busy ? 'Saving…' : trip ? 'Save changes' : '＋ Create trip'}</button>
         </div>
       </div>
     </div>
