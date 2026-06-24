@@ -3,6 +3,7 @@ import { getSyncConfig, setSyncConfig, syncNow } from '../lib/sync.js'
 import { exportBackup, importBackup } from '../lib/backup.js'
 import { passkeySupported, isPasskeyEnabled, enablePasskey, disablePasskey } from '../lib/webauthn.js'
 import { db, newId, getSetting, setSetting } from '../lib/db.js'
+import { Icon } from './Icon.jsx'
 
 const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
 const makeInitials = n => (n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?'
@@ -38,7 +39,6 @@ export default function Settings({ vaultKey, people = [], reload }) {
   }
   async function removePerson(id) {
     if (confirmId !== id) { setConfirmId(id); return }
-    // Also remove that person's documents so they stop triggering alerts.
     const docs = await db.documents.where('personId').equals(id).toArray()
     for (const d of docs) await db.documents.update(d.id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
     await db.people.delete(id)
@@ -92,7 +92,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
       <div className="topbar"><div><h2>Settings ⚙️</h2><div className="sub">Cloud sync is optional — your data stays on-device unless you turn it on.</div></div></div>
 
       <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
-        <h3><span className="ttl-ico">🎨</span> Appearance</h3>
+        <h3><Icon name="theme" /> Appearance</h3>
         <p className="desc">Choose a theme. Auto follows your device's light/dark setting.</p>
         <div className="seg">
           {['auto', 'light', 'dark'].map(t => (
@@ -104,7 +104,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
       </div>
 
       <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
-        <h3><span className="ttl-ico">👋</span> Your name</h3>
+        <h3><Icon name="user" /> Your name</h3>
         <p className="desc">Used to greet you on the dashboard. This is per-device, so each person who installs the app sets their own.</p>
         <label>Display name
           <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Amit" />
@@ -116,7 +116,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
       </div>
 
       <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
-        <h3><span className="ttl-ico">👨‍👩‍👧‍👦</span> Family members</h3>
+        <h3><Icon name="users" /> Family members</h3>
         <p className="desc">Who documents can belong to. Add your real family and remove the demo names.</p>
         {(people || []).map(p => (
           <div key={p.id} className="alert" style={{ marginBottom: 8 }}>
@@ -135,7 +135,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
       </div>
 
       <div className="card" style={{ maxWidth: 620 }}>
-        <h3><span className="ttl-ico">☁️</span> Encrypted cloud sync</h3>
+        <h3><Icon name="cloud" /> Encrypted cloud sync</h3>
         <p className="desc">When on, only the <b>already-encrypted</b> document blobs (plus expiry metadata for alerts) are uploaded. The server can never read your documents.</p>
 
         <label className="switch-row">
@@ -165,7 +165,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
       </div>
 
       <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
-        <h3><span className="ttl-ico">💾</span> Encrypted backup</h3>
+        <h3><Icon name="download" /> Encrypted backup</h3>
         <p className="desc">Download an encrypted <code>.voyager</code> file with everything in your vault. Document blobs and metadata are encrypted — the file is useless without your passphrase or recovery code. Restore it on a new device or after a wipe.</p>
         <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
           <button className="btn" onClick={doExport}>⬇️ Export backup</button>
@@ -177,7 +177,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
       </div>
 
       <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
-        <h3><span className="ttl-ico">👤</span> Face ID / passkey unlock</h3>
+        <h3><Icon name="passkey" /> Face ID / passkey unlock</h3>
         <p className="desc">Add a device passkey (Face ID, Touch ID, Windows Hello) for quick unlock. Your passphrase stays the master key; this is an extra, device-bound shortcut. Needs a supporting browser.</p>
         <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
           <button className="btn" onClick={togglePasskey} disabled={!passkeySupported()}>
@@ -189,7 +189,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
       </div>
 
       <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
-        <h3><span className="ttl-ico">🔑</span> Passphrase &amp; recovery</h3>
+        <h3><Icon name="key" /> Passphrase &amp; recovery</h3>
         <p className="desc">Your vault is protected by your passphrase, with a one-time <b>recovery code</b> shown at setup as the backup way in. If you forget your passphrase, choose “Forgot passphrase?” on the lock screen and enter that code to set a new one. Keep the code somewhere safe — anyone who has it can open the vault.</p>
       </div>
     </div>
