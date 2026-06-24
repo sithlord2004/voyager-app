@@ -38,6 +38,9 @@ export default function Settings({ vaultKey, people = [], reload }) {
   }
   async function removePerson(id) {
     if (confirmId !== id) { setConfirmId(id); return }
+    // Also remove that person's documents so they stop triggering alerts.
+    const docs = await db.documents.where('personId').equals(id).toArray()
+    for (const d of docs) await db.documents.update(d.id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
     await db.people.delete(id)
     setConfirmId(null)
     reload?.()
