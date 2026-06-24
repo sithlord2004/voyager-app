@@ -31,7 +31,7 @@ async function makeThumb(file) {
   return blob.arrayBuffer()
 }
 
-function DocCard({ doc, vaultKey, ownerName, onView }) {
+function DocCard({ doc, vaultKey, ownerName, onView, onDelete }) {
   const [thumb, setThumb] = useState(null)
   useEffect(() => {
     let url
@@ -58,6 +58,7 @@ function DocCard({ doc, vaultKey, ownerName, onView }) {
         {doc.blob
           ? <button className="mini" onClick={() => onView(doc)}>👁 View</button>
           : <span className="mini muted">No file attached</span>}
+        <button className="mini" style={{ marginLeft: 8, color: '#f87171' }} onClick={() => onDelete(doc)}>🗑 Delete</button>
       </div>
     </div>
   )
@@ -87,7 +88,15 @@ export default function Vault({ vaultKey, documents, people, reload }) {
   }
   function flash(t) { setMsg(t); reload(); setTimeout(() => setMsg(''), 2600) }
 
-  const list = documents.filter(d => filter === 'all' || d.personId === filter)
+  // Soft-delete: mark removed + dirty so it also clears from synced devices.
+  async function onDelete(doc) {
+    if (!window.confirm(`Delete "${doc.title}"? This removes it from your synced devices too.`)) return
+    await db.documents.update(doc.id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
+    if (syncOn) { try { await syncNow() } catch {} }
+    flash('🗑 Deleted')
+  }
+
+  const list = documents.filter(d => !d.deleted && (filter === 'all' || d.personId === filter))
 
   return (
     <div>
@@ -111,7 +120,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
       </div>
 
       <div className="doc-grid">
-        {list.map(d => <DocCard key={d.id} doc={d} vaultKey={vaultKey} ownerName={ownerName} onView={onView} />)}
+        {list.map(d => <DocCard key={d.id} doc={d} vaultKey={vaultKey} ownerName={ownerName} onView={onView} onDelete={onDelete} />)}
       </div>
 
       {adding && <AddDocModal people={people} vaultKey={vaultKey}
