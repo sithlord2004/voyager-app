@@ -8,6 +8,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,
+      workbox: { clientsClaim: true, skipWaiting: true },
       manifest: {
         name: 'Voyager — Travel Hub',
         short_name: 'Voyager',
