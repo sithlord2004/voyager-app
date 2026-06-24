@@ -1,22 +1,48 @@
 import { useEffect, useState } from 'react'
 import { getSetting, setSetting } from '../lib/db.js'
 
+const EU = name => ({ name, rows: [['🆘 Emergencies (EU 112)', '112']] })
+const ALL = (name, num) => ({ name, rows: [['🆘 All emergencies', num]] })
 const NUMBERS = {
-  JP: { name: 'Japan', rows: [['🚓 Police', '110'], ['🚑 Ambulance / Fire', '119'], ['☎️ Japan Helpline (EN)', '0570-000-911']] },
-  ES: { name: 'Spain', rows: [['🆘 Emergencies (EU)', '112'], ['🚓 Police', '091']] },
-  CA: { name: 'Canada', rows: [['🆘 All emergencies', '911']] },
-  US: { name: 'United States', rows: [['🆘 All emergencies', '911']] },
   GB: { name: 'United Kingdom', rows: [['🆘 Emergencies', '999 / 112']] },
+  IE: { name: 'Ireland', rows: [['🆘 Emergencies', '112 / 999']] },
   FR: { name: 'France', rows: [['🆘 Emergencies (EU)', '112'], ['🚓 Police', '17'], ['🚑 Ambulance (SAMU)', '15']] },
-  IT: { name: 'Italy', rows: [['🆘 Emergencies (EU)', '112']] },
-  DE: { name: 'Germany', rows: [['🆘 Emergencies (EU)', '112'], ['🚓 Police', '110']] },
-  NL: { name: 'Netherlands', rows: [['🆘 Emergencies (EU)', '112']] },
-  GR: { name: 'Greece', rows: [['🆘 Emergencies (EU)', '112']] },
-  PT: { name: 'Portugal', rows: [['🆘 Emergencies (EU)', '112']] },
-  AU: { name: 'Australia', rows: [['🆘 All emergencies', '000']] },
-  TH: { name: 'Thailand', rows: [['🚓 Police', '191'], ['🚑 Ambulance', '1669'], ['🧳 Tourist Police', '1155']] },
-  IN: { name: 'India', rows: [['🆘 All emergencies', '112']] },
-  MX: { name: 'Mexico', rows: [['🆘 All emergencies', '911']] }
+  ES: { name: 'Spain', rows: [['🆘 Emergencies (EU)', '112'], ['🚓 Police', '091']] },
+  IT: EU('Italy'), DE: { name: 'Germany', rows: [['🆘 Emergencies (EU)', '112'], ['🚓 Police', '110']] },
+  NL: EU('Netherlands'), BE: EU('Belgium'), PT: EU('Portugal'), GR: EU('Greece'),
+  AT: { name: 'Austria', rows: [['🆘 Emergencies (EU)', '112'], ['🚓 Police', '133'], ['🚑 Ambulance', '144']] },
+  CH: { name: 'Switzerland', rows: [['🆘 Emergencies', '112'], ['🚓 Police', '117'], ['🚑 Ambulance', '144']] },
+  SE: EU('Sweden'), DK: EU('Denmark'), FI: EU('Finland'),
+  NO: { name: 'Norway', rows: [['🚓 Police', '112'], ['🚑 Ambulance', '113'], ['🚒 Fire', '110']] },
+  IS: EU('Iceland'), PL: EU('Poland'), CZ: EU('Czechia'), HU: EU('Hungary'),
+  HR: EU('Croatia'), RO: EU('Romania'), TR: ALL('Turkey', '112'), RU: ALL('Russia', '112'),
+
+  JP: { name: 'Japan', rows: [['🚓 Police', '110'], ['🚑 Ambulance / Fire', '119'], ['☎️ Helpline (EN)', '0570-000-911']] },
+  KR: { name: 'South Korea', rows: [['🚓 Police', '112'], ['🚑 Ambulance / Fire', '119']] },
+  CN: { name: 'China', rows: [['🚓 Police', '110'], ['🚑 Ambulance', '120'], ['🚒 Fire', '119']] },
+  HK: ALL('Hong Kong', '999'), TW: { name: 'Taiwan', rows: [['🚓 Police', '110'], ['🚑 Ambulance / Fire', '119']] },
+  SG: { name: 'Singapore', rows: [['🚓 Police', '999'], ['🚑 Ambulance / Fire', '995']] },
+  MY: ALL('Malaysia', '999'), ID: ALL('Indonesia', '112'),
+  VN: { name: 'Vietnam', rows: [['🚓 Police', '113'], ['🚑 Ambulance', '115'], ['🚒 Fire', '114']] },
+  PH: ALL('Philippines', '911'), TH: { name: 'Thailand', rows: [['🚓 Police', '191'], ['🚑 Ambulance', '1669'], ['🧳 Tourist Police', '1155']] },
+  IN: ALL('India', '112'), LK: { name: 'Sri Lanka', rows: [['🚓 Police', '119'], ['🚑 Ambulance', '110']] },
+  NP: { name: 'Nepal', rows: [['🚓 Police', '100'], ['🚑 Ambulance', '102']] },
+
+  AE: { name: 'UAE', rows: [['🚓 Police', '999'], ['🚑 Ambulance', '998'], ['🚒 Fire', '997']] },
+  QA: ALL('Qatar', '999'), SA: { name: 'Saudi Arabia', rows: [['🚓 Police', '999'], ['🚑 Ambulance', '997']] },
+  IL: { name: 'Israel', rows: [['🚓 Police', '100'], ['🚑 Ambulance', '101'], ['🚒 Fire', '102']] },
+  JO: ALL('Jordan', '911'), EG: { name: 'Egypt', rows: [['🚓 Police', '122'], ['🚑 Ambulance', '123']] },
+
+  US: ALL('United States', '911'), CA: ALL('Canada', '911'), MX: ALL('Mexico', '911'),
+  BR: { name: 'Brazil', rows: [['🚓 Police', '190'], ['🚑 Ambulance', '192'], ['🚒 Fire', '193']] },
+  AR: ALL('Argentina', '911'), CL: { name: 'Chile', rows: [['🚓 Police', '133'], ['🚑 Ambulance', '131']] },
+  CO: ALL('Colombia', '123'), PE: { name: 'Peru', rows: [['🚓 Police', '105'], ['🚒 Fire', '116']] },
+  CR: ALL('Costa Rica', '911'),
+
+  AU: ALL('Australia', '000'), NZ: ALL('New Zealand', '111'),
+  ZA: { name: 'South Africa', rows: [['🚓 Police', '10111'], ['🚑 Ambulance', '10177'], ['📱 Mobile', '112']] },
+  MA: { name: 'Morocco', rows: [['🚓 Police', '19'], ['🚑 Ambulance', '15'], ['📱 Mobile', '112']] },
+  KE: ALL('Kenya', '999 / 112'), NG: ALL('Nigeria', '112')
 }
 
 export default function Emergency({ trips = [] }) {
@@ -35,6 +61,7 @@ export default function Emergency({ trips = [] }) {
   async function saveMedical(list) { setMedical(list); await setSetting('medicalNotes', list) }
 
   const local = NUMBERS[country]
+  const sorted = Object.entries(NUMBERS).sort((a, b) => a[1].name.localeCompare(b[1].name))
 
   return (
     <div>
@@ -46,7 +73,7 @@ export default function Emergency({ trips = [] }) {
           <span className="ttl-ico">📍</span> Local emergency numbers
           <select value={country} onChange={e => setCountry(e.target.value)}
             style={{ marginLeft: 'auto', background: 'rgba(0,0,0,.3)', color: '#fff', border: '1px solid rgba(255,255,255,.25)', borderRadius: 8, padding: '5px 8px' }}>
-            {Object.entries(NUMBERS).map(([code, v]) => <option key={code} value={code}>{v.name}</option>)}
+            {sorted.map(([code, v]) => <option key={code} value={code}>{v.name}</option>)}
           </select>
         </h3>
         <div className="emg-grid">
