@@ -48,6 +48,7 @@ function TripRow({ trip, docCount, onDelete }) {
 
 export default function Trips({ trips, documents, reload }) {
   const [importing, setImporting] = useState(false)
+  const [adding, setAdding] = useState(false)
   async function onDelete(trip) {
     await db.trips.delete(trip.id)
     reload?.()
@@ -56,7 +57,10 @@ export default function Trips({ trips, documents, reload }) {
     <div>
       <div className="topbar">
         <div><h2>Trips</h2><div className="sub">Everything for each journey in one place.</div></div>
-        <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => setImporting(true)}>📩 Import itinerary</button>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="btn ghost" onClick={() => setAdding(true)}>＋ Add manually</button>
+          <button className="btn" onClick={() => setImporting(true)}>📩 Import itinerary</button>
+        </div>
       </div>
       {trips.map(t => (
         <TripRow key={t.id} trip={t} onDelete={onDelete} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
@@ -65,6 +69,50 @@ export default function Trips({ trips, documents, reload }) {
         🟢 <b>forecast</b> = live forecast (trip within ~14 days) &nbsp;·&nbsp; 📅 <b>seasonal</b> = historical average for those dates
       </div>
       {importing && <ImportModal onClose={() => setImporting(false)} onSaved={() => { setImporting(false); reload?.() }} />}
+      {adding && <AddTripModal onClose={() => setAdding(false)} onSaved={() => { setAdding(false); reload?.() }} />}
+    </div>
+  )
+}
+
+function AddTripModal({ onClose, onSaved }) {
+  const [city, setCity] = useState('')
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [flightNo, setFlightNo] = useState('')
+  const [airline, setAirline] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    if (!city.trim() || !start) return
+    setBusy(true)
+    let countryCode = null
+    try { const p = await geocode(city.trim()); if (p) countryCode = p.country_code } catch {}
+    await createTrip({
+      destinationCity: city.trim(),
+      startDate: start, endDate: end || start,
+      countryCode,
+      flight: flightNo.trim() ? { number: flightNo.trim().toUpperCase(), airline: airline.trim(), depAirport: '', arrAirport: '', depTime: '' } : null
+    })
+    setBusy(false)
+    onSaved()
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h3>Add a trip</h3>
+        <label>Destination city <input value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. Lisbon" /></label>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <label style={{ flex: 1 }}>Start date <input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
+          <label style={{ flex: 1 }}>End date <input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
+        </div>
+        <label>Flight number (optional) <input value={flightNo} onChange={e => setFlightNo(e.target.value)} placeholder="e.g. TP1234" /></label>
+        <label>Airline (optional) <input value={airline} onChange={e => setAirline(e.target.value)} placeholder="e.g. TAP Air Portugal" /></label>
+        <div className="modal-actions">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn" onClick={save} disabled={busy || !city.trim() || !start}>{busy ? 'Saving…' : '＋ Create trip'}</button>
+        </div>
+      </div>
     </div>
   )
 }
