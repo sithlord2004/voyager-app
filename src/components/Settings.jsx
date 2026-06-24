@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getSyncConfig, setSyncConfig, syncNow } from '../lib/sync.js'
 import { exportBackup, importBackup } from '../lib/backup.js'
 import { passkeySupported, isPasskeyEnabled, enablePasskey, disablePasskey } from '../lib/webauthn.js'
+import { getSetting, setSetting } from '../lib/db.js'
 
 // Opt-in cloud sync configuration. Off by default — the app is on-device first.
 export default function Settings({ vaultKey }) {
@@ -10,9 +11,17 @@ export default function Settings({ vaultKey }) {
   const [backupMsg, setBackupMsg] = useState('')
   const [pkEnabled, setPkEnabled] = useState(false)
   const [pkMsg, setPkMsg] = useState('')
+  const [name, setName] = useState('')
+  const [nameMsg, setNameMsg] = useState('')
   const fileRef = useRef(null)
 
   useEffect(() => { isPasskeyEnabled().then(setPkEnabled) }, [])
+  useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
+  async function saveName() {
+    await setSetting('displayName', name.trim())
+    setNameMsg('✅ Saved. Reopen the Dashboard to see the greeting.')
+    setTimeout(() => setNameMsg(''), 2600)
+  }
   async function togglePasskey() {
     setPkMsg('')
     try {
@@ -53,6 +62,18 @@ export default function Settings({ vaultKey }) {
   return (
     <div>
       <div className="topbar"><div><h2>Settings ⚙️</h2><div className="sub">Cloud sync is optional — your data stays on-device unless you turn it on.</div></div></div>
+
+      <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
+        <h3><span className="ttl-ico">👋</span> Your name</h3>
+        <p className="desc">Used to greet you on the dashboard. This is per-device, so each person who installs the app sets their own.</p>
+        <label>Display name
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Amit" />
+        </label>
+        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
+          <button className="btn" onClick={saveName}>Save name</button>
+        </div>
+        {nameMsg && <div className="desc" style={{ marginTop: 12 }}>{nameMsg}</div>}
+      </div>
 
       <div className="card" style={{ maxWidth: 620 }}>
         <h3><span className="ttl-ico">☁️</span> Encrypted cloud sync</h3>
