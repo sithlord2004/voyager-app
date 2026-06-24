@@ -1,10 +1,4 @@
-// GET /api/expiry-alerts  — scheduled daily by cron (see vercel.json).
-// Scans the CLEAR expiry metadata (never decrypts documents) and emails each
-// family a summary of documents lapsing within the warning window.
-//
-// Because it reads only expiry_date / doc_type / title columns, zero-knowledge
-// is preserved: the encrypted payloads are never touched.
-
+// GET /api/expiry-alerts — daily cron, emails soon-to-expire documents.
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 
@@ -17,8 +11,9 @@ function daysUntil(dateStr) {
 }
 
 export default async function handler(req, res) {
-  // Allow Vercel Cron (sends a secret header) or a manual authorized call.
-  if (process.env.CRON_SECRET && req.headers.authorization !== 'Bearer ' + process.env.CRON_SECRET) {
+  const ok = req.headers.authorization === 'Bearer ' + process.env.CRON_SECRET
+    || (req.query && req.query.key === process.env.CRON_SECRET)
+  if (process.env.CRON_SECRET && !ok) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
@@ -48,7 +43,7 @@ export default async function handler(req, res) {
     ).join('')
 
     await resend.emails.send({
-      from: 'Voyager <alerts@your-domain.com>',
+      from: 'Voyager <onboarding@resend.dev>',
       to: fam.alert_email,
       subject: `✈️ ${soon.length} travel document(s) expiring soon`,
       html: `<h2>Documents needing attention</h2>
