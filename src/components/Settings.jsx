@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { getSyncConfig, setSyncConfig, syncNow } from '../lib/sync.js'
 import { exportBackup, importBackup } from '../lib/backup.js'
 import { passkeySupported, isPasskeyEnabled, enablePasskey, disablePasskey } from '../lib/webauthn.js'
-import { getSetting, setSetting } from '../lib/db.js'
+import { db, newId, getSetting, setSetting } from '../lib/db.js'
 
-// Opt-in cloud sync configuration. Off by default — the app is on-device first.
-export default function Settings({ vaultKey }) {
+const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
+const makeInitials = n => (n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?'
+
+export default function Settings({ vaultKey, people = [], reload }) {
   const [cfg, setCfg] = useState(null)
   const [msg, setMsg] = useState('')
   const [backupMsg, setBackupMsg] = useState('')
@@ -13,10 +15,26 @@ export default function Settings({ vaultKey }) {
   const [pkMsg, setPkMsg] = useState('')
   const [name, setName] = useState('')
   const [nameMsg, setNameMsg] = useState('')
+  const [newPerson, setNewPerson] = useState('')
+  const [confirmId, setConfirmId] = useState(null)
   const fileRef = useRef(null)
 
   useEffect(() => { isPasskeyEnabled().then(setPkEnabled) }, [])
   useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
+
+  async function addPerson() {
+    const nm = newPerson.trim()
+    if (!nm) return
+    await db.people.add({ id: newId(), name: nm, initials: makeInitials(nm), color: PALETTE[people.length % PALETTE.length], relationship: 'family' })
+    setNewPerson('')
+    reload?.()
+  }
+  async function removePerson(id) {
+    if (confirmId !== id) { setConfirmId(id); return }
+    await db.people.delete(id)
+    setConfirmId(null)
+    reload?.()
+  }
   async function saveName() {
     await setSetting('displayName', name.trim())
     setNameMsg('✅ Saved. Reopen the Dashboard to see the greeting.')
@@ -75,6 +93,25 @@ export default function Settings({ vaultKey }) {
         {nameMsg && <div className="desc" style={{ marginTop: 12 }}>{nameMsg}</div>}
       </div>
 
+      <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
+        <h3><span className="ttl-ico">👨‍👩‍👧‍👦</span> Family members</h3>
+        <p className="desc">Who documents can belong to. Add your real family and remove the demo names.</p>
+        {people.map(p => (
+          <div key={p.id} className="alert" style={{ marginBottom: 8 }}>
+            <div className="ai" style={{ background: p.color || '#3b82f6', color: '#fff', fontWeight: 700, fontSize: 13 }}>{p.initials || makeInitials(p.name)}</div>
+            <div className="body"><b>{p.name}</b><small>{p.relationship || 'family'}</small></div>
+            <button className="mini" style={{ color: '#f87171' }} onClick={() => removePerson(p.id)}>
+              {confirmId === p.id ? 'Tap again' : '🗑 Remove'}
+            </button>
+          </div>
+        ))}
+        <div className="file-row" style={{ marginTop: 6 }}>
+          <input value={newPerson} onChange={e => setNewPerson(e.target.value)} placeholder="Add a person's name"
+            onKeyDown={e => e.key === 'Enter' && addPerson()} style={{ flex: 1, minWidth: 160 }} />
+          <button className="btn" onClick={addPerson}>＋ Add</button>
+        </div>
+      </div>
+
       <div className="card" style={{ maxWidth: 620 }}>
         <h3><span className="ttl-ico">☁️</span> Encrypted cloud sync</h3>
         <p className="desc">When on, only the <b>already-encrypted</b> document blobs (plus expiry metadata for alerts) are uploaded. The server can never read your documents.</p>
@@ -107,32 +144,4 @@ export default function Settings({ vaultKey }) {
 
       <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
         <h3><span className="ttl-ico">💾</span> Encrypted backup</h3>
-        <p className="desc">Download an encrypted <code>.voyager</code> file with everything in your vault. Document blobs and metadata are encrypted — the file is useless without your passphrase or recovery code. Restore it on a new device or after a wipe.</p>
-        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
-          <button className="btn" onClick={doExport}>⬇️ Export backup</button>
-          <button className="btn ghost" onClick={() => fileRef.current?.click()}>⬆️ Restore backup</button>
-          <input ref={fileRef} type="file" accept=".voyager,application/json" hidden
-                 onChange={e => doImport(e.target.files[0])} />
-        </div>
-        {backupMsg && <div className="desc" style={{ marginTop: 12 }}>{backupMsg}</div>}
-      </div>
-
-      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
-        <h3><span className="ttl-ico">👤</span> Face ID / passkey unlock</h3>
-        <p className="desc">Add a device passkey (Face ID, Touch ID, Windows Hello) for quick unlock. Your passphrase stays the master key; this is an extra, device-bound shortcut. Needs a supporting browser.</p>
-        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
-          <button className="btn" onClick={togglePasskey} disabled={!passkeySupported()}>
-            {pkEnabled ? '🚫 Remove passkey' : '👤 Enable on this device'}
-          </button>
-          {!passkeySupported() && <span className="desc">Not available in this browser.</span>}
-        </div>
-        {pkMsg && <div className="desc" style={{ marginTop: 12 }}>{pkMsg}</div>}
-      </div>
-
-      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
-        <h3><span className="ttl-ico">🔑</span> Passphrase &amp; recovery</h3>
-        <p className="desc">Your vault is protected by your passphrase, with a one-time <b>recovery code</b> shown at setup as the backup way in. If you forget your passphrase, choose “Forgot passphrase?” on the lock screen and enter that code to set a new one. Keep the code somewhere safe — anyone who has it can open the vault.</p>
-      </div>
-    </div>
-  )
-}
+        <p
