@@ -103,3 +103,4 @@ src/
 > recovery codes and have the crypto reviewed. The design is sound (zero-knowledge,
 > on-device), but treat it as a starting point, not a finished security product.
 # voyager-app
+# voyager-app
