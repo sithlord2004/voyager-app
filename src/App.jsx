@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { db, seedIfEmpty } from './lib/db.js'
+import { db, seedIfEmpty, getSetting } from './lib/db.js'
 import LockScreen from './components/LockScreen.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Dashboard from './components/Dashboard.jsx'
@@ -13,6 +13,10 @@ export default function App() {
   const [vaultKey, setVaultKey] = useState(null)
   const [view, setView] = useState('dashboard')
   const [data, setData] = useState(null)
+
+  useEffect(() => {
+    getSetting('theme').then(t => document.documentElement.setAttribute('data-theme', t || 'auto'))
+  }, [])
 
   const reload = useCallback(async () => {
     const [people, trips, documents, packing] = await Promise.all([
