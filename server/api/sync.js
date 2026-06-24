@@ -12,6 +12,18 @@ function setCors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
 }
 
+// Read the JSON body whether or not Vercel pre-parsed it.
+async function readJson(req) {
+  if (req.body && typeof req.body === 'object') return req.body
+  if (typeof req.body === 'string') { try { return JSON.parse(req.body) } catch { return {} } }
+  return await new Promise(resolve => {
+    let data = ''
+    req.on('data', c => { data += c })
+    req.on('end', () => { try { resolve(JSON.parse(data || '{}')) } catch { resolve({}) } })
+    req.on('error', () => resolve({}))
+  })
+}
+
 export default async function handler(req, res) {
   setCors(res)
   if (req.method === 'OPTIONS') return res.status(204).end()
@@ -20,10 +32,9 @@ export default async function handler(req, res) {
   const auth = req.headers.authorization || ''
   if (auth !== 'Bearer ' + process.env.SYNC_TOKEN) return res.status(401).json({ error: 'Unauthorized' })
 
-  let body = req.body
-  if (typeof body === 'string') { try { body = JSON.parse(body) } catch { body = {} } }
+  const body = await readJson(req)
   const { familyId, since = 0, documents = [] } = body || {}
-  if (!familyId) return res.status(400).json({ error: 'familyId required (got: ' + JSON.stringify(body) + ')' })
+  if (!familyId) return res.status(400).json({ error: 'familyId required' })
 
   if (documents.length) {
     const rows = documents.map(d => ({
