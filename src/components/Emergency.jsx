@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getSetting, setSetting } from '../lib/db.js'
 import { geocode } from '../lib/weather.js'
+import { Icon } from './Icon.jsx'
 
+// Local emergency numbers by country code. Many countries (esp. EU) use 112.
 const EU = name => ({ name, rows: [['🆘 Emergencies (EU 112)', '112']] })
 const ALL = (name, num) => ({ name, rows: [['🆘 All emergencies', num]] })
 const NUMBERS = {
@@ -42,6 +44,7 @@ const NUMBERS = {
   KE: ALL('Kenya', '999 / 112'), NG: ALL('Nigeria', '112')
 }
 
+// Official embassy/consulate locators by the traveller's HOME country.
 const EMBASSY = {
   GB: { name: 'United Kingdom', url: 'https://www.gov.uk/world/embassies' },
   US: { name: 'United States', url: 'https://www.usembassy.gov/' },
@@ -117,7 +120,7 @@ export default function Emergency({ trips = [] }) {
 
       <div className="card emg" style={{ marginBottom: 18 }}>
         <h3 style={{ color: '#fff' }}>
-          <span className="ttl-ico">📍</span> Emergency numbers{countryName ? ` — ${countryName}` : ''}
+          <Icon name="pin" /> Emergency numbers{countryName ? ` — ${countryName}` : ''}
         </h3>
         <div className="emg-grid">
           {(local ? local.rows : [['🆘 Try 112 / 911', 'check locally']]).map(([label, num]) => (
@@ -127,7 +130,7 @@ export default function Emergency({ trips = [] }) {
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
-        <h3><span className="ttl-ico">🏥</span> Hospitals {dest ? `· ${dest}` : ''}</h3>
+        <h3><Icon name="hospital" /> Hospitals {dest ? `· ${dest}` : ''}</h3>
         {hLoading && <div className="desc">Finding hospitals nearby…</div>}
         {!hLoading && hospitals && hospitals.map((h, i) => (
           <div className="alert" key={i}>
@@ -143,7 +146,7 @@ export default function Emergency({ trips = [] }) {
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
-        <h3><span className="ttl-ico">🏛️</span> Your embassy</h3>
+        <h3><Icon name="building" /> Your embassy</h3>
         <label className="switch-row" style={{ maxWidth: 360 }}>
           <span>Your home country</span>
           <select value={home} onChange={e => changeHome(e.target.value)}
@@ -160,16 +163,16 @@ export default function Emergency({ trips = [] }) {
       </div>
 
       <div className="two-col">
-        <EditList title="👨‍👩‍👧‍👦 Emergency contacts" icon="📞" items={contacts} onChange={saveContacts}
+        <EditList headIcon="phone" title="Emergency contacts" icon="📞" items={contacts} onChange={saveContacts}
           placeholder1="Name (e.g. Mum)" placeholder2="Phone / detail" />
-        <EditList title="🧬 Medical notes" icon="🩺" items={medical} onChange={saveMedical}
+        <EditList headIcon="pulse" title="Medical notes" icon="🩺" items={medical} onChange={saveMedical}
           placeholder1="Who (e.g. Aria)" placeholder2="Detail (e.g. Allergy: peanuts)" />
       </div>
     </div>
   )
 }
 
-function EditList({ title, icon, items, onChange, placeholder1, placeholder2 }) {
+function EditList({ headIcon, title, icon, items, onChange, placeholder1, placeholder2 }) {
   const [a, setA] = useState('')
   const [b, setB] = useState('')
   function add() {
@@ -181,7 +184,7 @@ function EditList({ title, icon, items, onChange, placeholder1, placeholder2 }) 
 
   return (
     <div className="card">
-      <h3>{title}</h3>
+      <h3>{headIcon && <Icon name={headIcon} />} {title}</h3>
       {items.length ? items.map((it, idx) => (
         <div className="alert" key={idx}>
           <div className="ai" style={{ background: 'rgba(59,130,246,.15)' }}>{icon}</div>
