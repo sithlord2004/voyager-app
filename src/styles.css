@@ -190,12 +190,8 @@ input{font-family:inherit}
 .card label input{width:100%;margin-top:5px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;outline:none}
 
 @media(max-width:1080px){.two-col{grid-template-columns:1fr}}
-@media(max-width:760px){.app{grid-template-columns:1fr}.sidebar{flex-direction:row;height:auto;position:sticky;top:0;z-index:50;overflow-x:auto;background:#0d1117;border-bottom:1px solid var(--border-soft)}.brand{padding:6px 8px}.nav-label{display:none}.profile{display:none}.main{padding:18px}}```
+@media(max-width:760px){.app{display:block}.sidebar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;flex-direction:row;align-items:center;gap:4px;height:auto;padding:8px 10px;overflow-x:auto;background:#0d1117;border-bottom:1px solid var(--border-soft)}.sidebar .nav-item{flex-shrink:0;white-space:nowrap;padding:8px 10px}.brand{padding:4px 6px;flex-shrink:0}.nav-label{display:none}.profile{display:none}.main{padding:74px 16px 40px}}```
 
-4. **Commit changes**, wait a minute, hard-refresh.
+Commit, wait a minute, hard-refresh. Now the bar is **fixed to the top of the screen** and won't move when you scroll — and the page content starts just below it so nothing's hidden.
 
-What changed: the nav bar is now **sticky** (`position: sticky; top: 0`), so it stays pinned to the top of the screen as you scroll, with a solid background so content doesn't show through behind it. That fixes the "bar moves down" behaviour in every section.
-
-(And to answer your other question — the bar moving wasn't about the pages being empty; it was just that the nav was set to scroll away with the page. This pins it regardless of how much content a page has.)
-
-If you can't spot the line, tell me and I'll paste the whole `styles.css` so you can replace the lot. 👍
+If it still misbehaves after this, tell me whether you're viewing it as the **installed home-screen app** or in a **browser tab** — installed PWAs sometimes cache the old stylesheet, so a full close-and-reopen (or even removing and re-adding to the home screen) may be needed to pick up the change.
