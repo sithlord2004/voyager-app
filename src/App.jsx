@@ -23,7 +23,7 @@ export default function App() {
     const [people, trips, documents, packing] = await Promise.all([
       db.people.toArray(), db.trips.toArray(), db.documents.toArray(), db.packing.toArray()
     ])
-    setData({ people, trips, documents, packing })
+    setData({ people, trips: trips.filter(t => !t.deleted), documents, packing })
   }, [])
 
   useEffect(() => {
