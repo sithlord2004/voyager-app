@@ -16,10 +16,18 @@ export default function Dashboard({ trips, documents, people }) {
   const [wx, setWx] = useState(null)
   const [place, setPlace] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [fs, setFs] = useState(null)
+  // All flight legs of the next trip (supports multi-leg trips + legacy single flight)
+  const flightLegs = (next?.legs?.length
+    ? next.legs
+    : (next?.flight ? [{ mode: 'flight', number: next.flight.number, from: next.flight.depAirport, to: next.flight.arrAirport, date: next.startDate }] : [])
+  ).filter(l => l.mode === 'flight' && l.number)
 
+  const [statuses, setStatuses] = useState({})
   useEffect(() => {
-    if (next?.flight?.number) getFlightStatus(next.flight.number, next.startDate).then(setFs)
+    flightLegs.forEach(l => {
+      const key = l.number + '_' + (l.date || next.startDate)
+      getFlightStatus(l.number, l.date || next?.startDate).then(s => { if (s) setStatuses(prev => ({ ...prev, [key]: s })) })
+    })
   }, []) // eslint-disable-line
 
   async function load(c) {
@@ -88,29 +96,30 @@ export default function Dashboard({ trips, documents, people }) {
 
         <div className="grid">
           <div className="card">
-            {(() => { const [cls, label] = fs ? statusChip(fs.status) : ['st-ontime', next?.flight ? 'On time' : '—']
-              return <h3><span className="ttl-ico">✈️</span> Flight Status
-                <span style={{ marginLeft: 'auto' }} className={'status-chip ' + cls}>{label}</span></h3> })()}
-            <div className="desc">
-              {next?.flight ? `${next.flight.number} · ${next.flight.airline}` : 'No flight added'}
-              {fs ? ' · 🟢 live' : next?.flight ? ' · add backend in Settings for live status' : ''}
-            </div>
-            {next?.flight && (
-              <div className="flight">
-                <div className="air">🛫</div>
-                <div className="route">
-                  <div className="ap">
-                    <b>{fs?.departure?.airport || next.flight.depAirport}</b>
-                    <div className="time">{fs?.departure?.revised?.slice(11, 16) || fs?.departure?.scheduled?.slice(11, 16) || next.flight.depTime}</div>
+            <h3><span className="ttl-ico">✈️</span> Flights</h3>
+            {flightLegs.length ? flightLegs.map((l, i) => {
+              const s = statuses[l.number + '_' + (l.date || next.startDate)]
+              const [cls, label] = s ? statusChip(s.status) : ['st-ontime', 'scheduled']
+              return (
+                <div className="flight" key={i} style={{ marginBottom: 10 }}>
+                  <div className="air">🛫</div>
+                  <div className="route">
+                    <div className="ap">
+                      <b>{s?.departure?.airport || l.from || '—'}</b>
+                      <div className="time">{s?.departure?.revised?.slice(11, 16) || s?.departure?.scheduled?.slice(11, 16) || ''}</div>
+                    </div>
+                    <div className="planeline"><span className="dur">{l.number}{s?.departure?.gate ? ` · Gate ${s.departure.gate}` : ''}</span></div>
+                    <div className="ap">
+                      <b>{s?.arrival?.airport || l.to || '—'}</b>
+                      <div className="time">{s?.arrival?.scheduled?.slice(11, 16) || ''}</div>
+                    </div>
                   </div>
-                  <div className="planeline"><span className="dur">{fs?.departure?.gate ? `Gate ${fs.departure.gate}` : 'Live tracking'}</span></div>
-                  <div className="ap">
-                    <b>{fs?.arrival?.airport || next.flight.arrAirport}</b>
-                    <div className="time">{fs?.arrival?.scheduled?.slice(11, 16) || '+1'}</div>
-                  </div>
+                  <span className={'status-chip ' + cls} style={{ marginLeft: 8 }}>{s ? `🟢 ${label}` : label}</span>
                 </div>
-              </div>
-            )}
+              )
+            }) : <div className="desc">No flights on this trip</div>}
+            {flightLegs.length > 0 && Object.keys(statuses).length === 0 &&
+              <div className="desc" style={{ marginTop: 2 }}>Showing scheduled — live status needs the backend (Settings) and is available ~7 days out.</div>}
           </div>
 
           <div className="card">
