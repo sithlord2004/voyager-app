@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getSetting, setSetting } from '../lib/db.js'
+import { geocode } from '../lib/weather.js'
 
 const EU = name => ({ name, rows: [['🆘 Emergencies (EU 112)', '112']] })
 const ALL = (name, num) => ({ name, rows: [['🆘 All emergencies', num]] })
@@ -16,7 +17,6 @@ const NUMBERS = {
   NO: { name: 'Norway', rows: [['🚓 Police', '112'], ['🚑 Ambulance', '113'], ['🚒 Fire', '110']] },
   IS: EU('Iceland'), PL: EU('Poland'), CZ: EU('Czechia'), HU: EU('Hungary'),
   HR: EU('Croatia'), RO: EU('Romania'), TR: ALL('Turkey', '112'), RU: ALL('Russia', '112'),
-
   JP: { name: 'Japan', rows: [['🚓 Police', '110'], ['🚑 Ambulance / Fire', '119'], ['☎️ Helpline (EN)', '0570-000-911']] },
   KR: { name: 'South Korea', rows: [['🚓 Police', '112'], ['🚑 Ambulance / Fire', '119']] },
   CN: { name: 'China', rows: [['🚓 Police', '110'], ['🚑 Ambulance', '120'], ['🚒 Fire', '119']] },
@@ -27,60 +27,130 @@ const NUMBERS = {
   PH: ALL('Philippines', '911'), TH: { name: 'Thailand', rows: [['🚓 Police', '191'], ['🚑 Ambulance', '1669'], ['🧳 Tourist Police', '1155']] },
   IN: ALL('India', '112'), LK: { name: 'Sri Lanka', rows: [['🚓 Police', '119'], ['🚑 Ambulance', '110']] },
   NP: { name: 'Nepal', rows: [['🚓 Police', '100'], ['🚑 Ambulance', '102']] },
-
   AE: { name: 'UAE', rows: [['🚓 Police', '999'], ['🚑 Ambulance', '998'], ['🚒 Fire', '997']] },
   QA: ALL('Qatar', '999'), SA: { name: 'Saudi Arabia', rows: [['🚓 Police', '999'], ['🚑 Ambulance', '997']] },
   IL: { name: 'Israel', rows: [['🚓 Police', '100'], ['🚑 Ambulance', '101'], ['🚒 Fire', '102']] },
   JO: ALL('Jordan', '911'), EG: { name: 'Egypt', rows: [['🚓 Police', '122'], ['🚑 Ambulance', '123']] },
-
   US: ALL('United States', '911'), CA: ALL('Canada', '911'), MX: ALL('Mexico', '911'),
   BR: { name: 'Brazil', rows: [['🚓 Police', '190'], ['🚑 Ambulance', '192'], ['🚒 Fire', '193']] },
   AR: ALL('Argentina', '911'), CL: { name: 'Chile', rows: [['🚓 Police', '133'], ['🚑 Ambulance', '131']] },
   CO: ALL('Colombia', '123'), PE: { name: 'Peru', rows: [['🚓 Police', '105'], ['🚒 Fire', '116']] },
   CR: ALL('Costa Rica', '911'),
-
   AU: ALL('Australia', '000'), NZ: ALL('New Zealand', '111'),
   ZA: { name: 'South Africa', rows: [['🚓 Police', '10111'], ['🚑 Ambulance', '10177'], ['📱 Mobile', '112']] },
   MA: { name: 'Morocco', rows: [['🚓 Police', '19'], ['🚑 Ambulance', '15'], ['📱 Mobile', '112']] },
   KE: ALL('Kenya', '999 / 112'), NG: ALL('Nigeria', '112')
 }
 
+const EMBASSY = {
+  GB: { name: 'United Kingdom', url: 'https://www.gov.uk/world/embassies' },
+  US: { name: 'United States', url: 'https://www.usembassy.gov/' },
+  AU: { name: 'Australia', url: 'https://www.dfat.gov.au/about-us/our-locations/missions' },
+  CA: { name: 'Canada', url: 'https://travel.gc.ca/assistance/embassies-consulates' },
+  IE: { name: 'Ireland', url: 'https://www.ireland.ie/en/dfa/embassies/' },
+  NZ: { name: 'New Zealand', url: 'https://www.mfat.govt.nz/en/embassies/' },
+  IN: { name: 'India', url: 'https://www.mea.gov.in/indian-missions-abroad-new.htm' },
+  DE: { name: 'Germany', url: 'https://www.auswaertiges-amt.de/en/embassies' },
+  FR: { name: 'France', url: 'https://www.diplomatie.gouv.fr/en/the-ministry-and-its-network/' }
+}
+
+async function fetchHospitals(lat, lon) {
+  const q = `[out:json][timeout:15];(node["amenity"="hospital"](around:8000,${lat},${lon});way["amenity"="hospital"](around:8000,${lat},${lon}););out center 8;`
+  const r = await fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(q))
+  const j = await r.json()
+  return (j.elements || [])
+    .filter(e => e.tags?.name)
+    .map(e => ({ name: e.tags.name, phone: e.tags.phone || e.tags['contact:phone'] || '', lat: e.lat || e.center?.lat, lon: e.lon || e.center?.lon }))
+    .slice(0, 6)
+}
+
 export default function Emergency({ trips = [] }) {
   const next = [...trips].filter(t => new Date(t.endDate) >= new Date())
     .sort((a, b) => a.startDate.localeCompare(b.startDate))[0] || trips[0]
-  const [country, setCountry] = useState(next?.countryCode && NUMBERS[next.countryCode] ? next.countryCode : 'GB')
+  const [dest, setDest] = useState(next?.destinationCity || '')
+  const [cc, setCc] = useState(next?.countryCode || 'GB')
+  const [countryName, setCountryName] = useState('')
+  const [hospitals, setHospitals] = useState(null)
+  const [hLoading, setHLoading] = useState(false)
+  const [home, setHome] = useState('GB')
   const [contacts, setContacts] = useState([])
   const [medical, setMedical] = useState([])
 
   useEffect(() => {
     getSetting('emergencyContacts').then(c => setContacts(c || []))
     getSetting('medicalNotes').then(m => setMedical(m || []))
-  }, [])
+    getSetting('homeCountry').then(h => setHome(h || 'GB'))
+    if (dest) lookup(dest)
+  }, []) // eslint-disable-line
 
+  async function lookup(city) {
+    if (!city.trim()) return
+    setHLoading(true); setHospitals(null)
+    try {
+      const p = await geocode(city.trim())
+      if (p) {
+        if (p.country_code) setCc(p.country_code)
+        setCountryName(p.country || '')
+        const list = await fetchHospitals(p.latitude, p.longitude)
+        setHospitals(list)
+      } else setHospitals([])
+    } catch { setHospitals([]) }
+    setHLoading(false)
+  }
+  async function changeHome(v) { setHome(v); await setSetting('homeCountry', v) }
   async function saveContacts(list) { setContacts(list); await setSetting('emergencyContacts', list) }
   async function saveMedical(list) { setMedical(list); await setSetting('medicalNotes', list) }
 
-  const local = NUMBERS[country]
-  const sorted = Object.entries(NUMBERS).sort((a, b) => a[1].name.localeCompare(b[1].name))
+  const local = NUMBERS[cc]
+  const emb = EMBASSY[home]
 
   return (
     <div>
       <div className="topbar"><div><h2>Emergency Card 🆘</h2>
-        <div className="sub">Works offline · the info you want when things go wrong</div></div></div>
+        <div className="sub">Local numbers, nearby hospitals &amp; your embassy — for wherever you are</div></div></div>
+
+      <div className="file-row" style={{ maxWidth: 620, marginBottom: 16 }}>
+        <input value={dest} onChange={e => setDest(e.target.value)} placeholder="Destination city (e.g. Tokyo)"
+          onKeyDown={e => e.key === 'Enter' && lookup(dest)} style={{ flex: 1 }} />
+        <button className="btn" onClick={() => lookup(dest)}>🔎 Look up</button>
+      </div>
 
       <div className="card emg" style={{ marginBottom: 18 }}>
         <h3 style={{ color: '#fff' }}>
-          <span className="ttl-ico">📍</span> Local emergency numbers
-          <select value={country} onChange={e => setCountry(e.target.value)}
-            style={{ marginLeft: 'auto', background: 'rgba(0,0,0,.3)', color: '#fff', border: '1px solid rgba(255,255,255,.25)', borderRadius: 8, padding: '5px 8px' }}>
-            {sorted.map(([code, v]) => <option key={code} value={code}>{v.name}</option>)}
-          </select>
+          <span className="ttl-ico">📍</span> Emergency numbers{countryName ? ` — ${countryName}` : ''}
         </h3>
         <div className="emg-grid">
-          {local.rows.map(([label, num]) => (
+          {(local ? local.rows : [['🆘 Try 112 / 911', 'check locally']]).map(([label, num]) => (
             <div className="emg-item" key={label}><div className="lbl">{label}</div><b>{num}</b></div>
           ))}
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 18 }}>
+        <h3><span className="ttl-ico">🏥</span> Nearest hospitals {dest ? `· ${dest}` : ''}</h3>
+        {hLoading && <div className="desc">Finding hospitals nearby…</div>}
+        {!hLoading && hospitals && hospitals.length === 0 && <div className="desc">No hospitals found — type a destination city above and tap Look up.</div>}
+        {!hLoading && hospitals && hospitals.map((h, i) => (
+          <div className="alert" key={i}>
+            <div className="ai" style={{ background: 'rgba(34,197,94,.15)' }}>🏥</div>
+            <div className="body"><b>{h.name}</b>{h.phone && <small>{h.phone}</small>}</div>
+            {h.lat && <a className="mini" href={`https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lon}`} target="_blank" rel="noopener noreferrer">🗺️ Map</a>}
+          </div>
+        ))}
+        <div className="desc" style={{ marginTop: 6 }}>Data from OpenStreetMap. In a real emergency, call the number above first.</div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 18 }}>
+        <h3><span className="ttl-ico">🏛️</span> Your embassy</h3>
+        <label className="switch-row" style={{ maxWidth: 360 }}>
+          <span>Your home country</span>
+          <select value={home} onChange={e => changeHome(e.target.value)}
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 8px', color: 'var(--text)' }}>
+            {Object.entries(EMBASSY).map(([code, v]) => <option key={code} value={code}>{v.name}</option>)}
+          </select>
+        </label>
+        <p className="desc">Official locator for the nearest {emb?.name} embassy/consulate{countryName ? ` in ${countryName}` : ''} — always current.</p>
+        {emb && <a className="btn" href={emb.url} target="_blank" rel="noopener noreferrer">🏛️ Find {emb.name} embassy →</a>}
       </div>
 
       <div className="two-col">
