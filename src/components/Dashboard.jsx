@@ -16,7 +16,7 @@ export default function Dashboard({ trips, documents, people }) {
   const [wx, setWx] = useState(null)
   const [place, setPlace] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [fs, setFs] = useState(null) // live flight status (null until/unless configured)
+  const [fs, setFs] = useState(null)
 
   useEffect(() => {
     if (next?.flight?.number) getFlightStatus(next.flight.number, next.startDate).then(setFs)
@@ -35,9 +35,9 @@ export default function Dashboard({ trips, documents, people }) {
   const code = cur ? (WMO[cur.weather_code] || ['🌡️','—']) : ['…','']
   const flag = place ? (FLAGS[place.country_code] || '') : ''
 
-  // expiry alerts from clear-text metadata
+  // expiry alerts — ignore deleted docs and docs whose owner no longer exists
   const alerts = documents
-    .filter(d => d.expiryDate)
+    .filter(d => d.expiryDate && !d.deleted && people.some(p => p.id === d.personId))
     .map(d => ({ d, days: Math.round((new Date(d.expiryDate) - new Date()) / 86400000) }))
     .filter(x => x.days < 180)
     .sort((a, b) => a.days - b.days)
