@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { geocode, currentWeather, WMO, FLAGS } from '../lib/weather.js'
 import { getFlightStatus, statusChip } from '../lib/flights.js'
 import { getSetting } from '../lib/db.js'
+import { Icon } from './Icon.jsx'
 
 const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT']
 
@@ -16,7 +17,6 @@ export default function Dashboard({ trips, documents, people }) {
   const [wx, setWx] = useState(null)
   const [place, setPlace] = useState(null)
   const [loading, setLoading] = useState(true)
-  // All flight legs of the next trip (supports multi-leg trips + legacy single flight)
   const flightLegs = (next?.legs?.length
     ? next.legs
     : (next?.flight ? [{ mode: 'flight', number: next.flight.number, from: next.flight.depAirport, to: next.flight.arrAirport, date: next.startDate }] : [])
@@ -43,7 +43,6 @@ export default function Dashboard({ trips, documents, people }) {
   const code = cur ? (WMO[cur.weather_code] || ['🌡️','—']) : ['…','']
   const flag = place ? (FLAGS[place.country_code] || '') : ''
 
-  // expiry alerts — ignore deleted docs and docs whose owner no longer exists
   const alerts = documents
     .filter(d => d.expiryDate && !d.deleted && people.some(p => p.id === d.personId))
     .map(d => ({ d, days: Math.round((new Date(d.expiryDate) - new Date()) / 86400000) }))
@@ -96,7 +95,7 @@ export default function Dashboard({ trips, documents, people }) {
 
         <div className="grid">
           <div className="card">
-            <h3><span className="ttl-ico">✈️</span> Flights</h3>
+            <h3><Icon name="plane" /> Flights</h3>
             {flightLegs.length ? flightLegs.map((l, i) => {
               const s = statuses[l.number + '_' + (l.date || next.startDate)]
               const [cls, label] = s ? statusChip(s.status) : ['st-ontime', 'scheduled']
@@ -123,7 +122,7 @@ export default function Dashboard({ trips, documents, people }) {
           </div>
 
           <div className="card">
-            <h3><span className="ttl-ico">🔔</span> Needs your attention</h3>
+            <h3><Icon name="bell" /> Needs your attention</h3>
             {alerts.length ? alerts.slice(0, 3).map(({ d, days }) => (
               <div key={d.id} className={'alert ' + (days < 90 ? 'danger' : 'warn')}>
                 <div className="ai">{days < 90 ? '🛂' : '🪪'}</div>
