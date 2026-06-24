@@ -17,7 +17,13 @@ const PBKDF2_ITERATIONS = 210000
 const VERIFIER_PLAINTEXT = 'voyager-verifier-v2'
 const RECOVERY_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789' // no ambiguous chars
 
-function buf2b64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))) }
+function buf2b64(buf) {
+  const bytes = new Uint8Array(buf)
+  let bin = ''
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK))
+  return btoa(bin)
+}
 function b642u8(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)) }
 export function randomBytes(len) { return crypto.getRandomValues(new Uint8Array(len)) }
 
