@@ -10,7 +10,7 @@ import Emergency from './components/Emergency.jsx'
 import Settings from './components/Settings.jsx'
 
 export default function App() {
-  const [vaultKey, setVaultKey] = useState(null)   // in-memory only; null = locked
+  const [vaultKey, setVaultKey] = useState(null)
   const [view, setView] = useState('dashboard')
   const [data, setData] = useState(null)
 
@@ -21,7 +21,6 @@ export default function App() {
     setData({ people, trips, documents, packing })
   }, [])
 
-  // Load data once the vault is unlocked.
   useEffect(() => {
     if (!vaultKey) return
     (async () => { await seedIfEmpty(); await reload() })()
@@ -38,8 +37,8 @@ export default function App() {
         {view === 'trips' && <Trips trips={data.trips} documents={data.documents} reload={reload} />}
         {view === 'vault' && <Vault vaultKey={vaultKey} documents={data.documents} people={data.people} reload={reload} />}
         {view === 'packing' && <Packing trips={data.trips} packing={data.packing} reload={reload} />}
-        {view === 'emergency' && <Emergency />}
-        {view === 'settings' && <Settings vaultKey={vaultKey} />}
+        {view === 'emergency' && <Emergency trips={data.trips} />}
+        {view === 'settings' && <Settings vaultKey={vaultKey} people={data.people} reload={reload} />}
       </main>
     </div>
   )
