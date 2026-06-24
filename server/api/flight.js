@@ -1,10 +1,5 @@
 // GET /api/flight?number=JL044&date=2026-07-02
-// Proxies a flight-status provider (AeroDataBox via RapidAPI) so the API key
-// never ships to the browser. Returns a normalised status object.
-//
-// Swap the provider easily — only `fetchStatus` and the env var change.
-
-const AUTH = process.env.SYNC_TOKEN // reuse the family token for a simple gate
+const AUTH = process.env.SYNC_TOKEN
 
 async function fetchStatus(number, date) {
   const url = `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(number)}/${date}`
@@ -20,7 +15,7 @@ async function fetchStatus(number, date) {
   if (!f) return null
   return {
     number: f.number,
-    status: f.status,                                   // e.g. "Expected", "Departed", "Arrived"
+    status: f.status,
     airline: f.airline?.name,
     departure: {
       airport: f.departure?.airport?.iata,
@@ -39,6 +34,10 @@ async function fetchStatus(number, date) {
 }
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+  if (req.method === 'OPTIONS') return res.status(204).end()
   if ((req.headers.authorization || '') !== 'Bearer ' + AUTH)
     return res.status(401).json({ error: 'Unauthorized' })
 
