@@ -127,9 +127,8 @@ export default function Emergency({ trips = [] }) {
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
-        <h3><span className="ttl-ico">🏥</span> Nearest hospitals {dest ? `· ${dest}` : ''}</h3>
+        <h3><span className="ttl-ico">🏥</span> Hospitals {dest ? `· ${dest}` : ''}</h3>
         {hLoading && <div className="desc">Finding hospitals nearby…</div>}
-        {!hLoading && hospitals && hospitals.length === 0 && <div className="desc">No hospitals found — type a destination city above and tap Look up.</div>}
         {!hLoading && hospitals && hospitals.map((h, i) => (
           <div className="alert" key={i}>
             <div className="ai" style={{ background: 'rgba(34,197,94,.15)' }}>🏥</div>
@@ -137,7 +136,10 @@ export default function Emergency({ trips = [] }) {
             {h.lat && <a className="mini" href={`https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lon}`} target="_blank" rel="noopener noreferrer">🗺️ Map</a>}
           </div>
         ))}
-        <div className="desc" style={{ marginTop: 6 }}>Data from OpenStreetMap. In a real emergency, call the number above first.</div>
+        {dest
+          ? <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('hospitals near ' + dest)}`} target="_blank" rel="noopener noreferrer">🗺️ Open hospitals near {dest} in Maps</a>
+          : <div className="desc">Enter a destination above to find nearby hospitals.</div>}
+        <div className="desc" style={{ marginTop: 8 }}>In a real emergency, call the number above first.</div>
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
@@ -149,8 +151,12 @@ export default function Emergency({ trips = [] }) {
             {Object.entries(EMBASSY).map(([code, v]) => <option key={code} value={code}>{v.name}</option>)}
           </select>
         </label>
-        <p className="desc">Official locator for the nearest {emb?.name} embassy/consulate{countryName ? ` in ${countryName}` : ''} — always current.</p>
-        {emb && <a className="btn" href={emb.url} target="_blank" rel="noopener noreferrer">🏛️ Find {emb.name} embassy →</a>}
+        <p className="desc">Find the nearest {emb?.name} embassy/consulate{countryName ? ` in ${countryName}` : dest ? ` in ${dest}` : ''}.</p>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <a className="btn" target="_blank" rel="noopener noreferrer"
+            href={`https://www.google.com/search?q=${encodeURIComponent((emb?.name || '') + ' embassy in ' + (countryName || dest || ''))}`}>🔎 Find embassy →</a>
+          {emb && <a className="btn ghost" href={emb.url} target="_blank" rel="noopener noreferrer">Official locator</a>}
+        </div>
       </div>
 
       <div className="two-col">
