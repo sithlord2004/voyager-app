@@ -20,8 +20,10 @@ export default async function handler(req, res) {
   const auth = req.headers.authorization || ''
   if (auth !== 'Bearer ' + process.env.SYNC_TOKEN) return res.status(401).json({ error: 'Unauthorized' })
 
-  const { familyId, since = 0, documents = [] } = req.body || {}
-  if (!familyId) return res.status(400).json({ error: 'familyId required' })
+  let body = req.body
+  if (typeof body === 'string') { try { body = JSON.parse(body) } catch { body = {} } }
+  const { familyId, since = 0, documents = [] } = body || {}
+  if (!familyId) return res.status(400).json({ error: 'familyId required (got: ' + JSON.stringify(body) + ')' })
 
   if (documents.length) {
     const rows = documents.map(d => ({
