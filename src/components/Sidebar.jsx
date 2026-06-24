@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react'
+import { getSetting } from '../lib/db.js'
+
 const NAV = [
   ['dashboard', '🏠', 'Dashboard'],
   ['trips', '🗺️', 'Trips'],
@@ -7,7 +10,16 @@ const NAV = [
   ['settings', '⚙️', 'Settings']
 ]
 
+function initials(name) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return '🧭'
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase()
+}
+
 export default function Sidebar({ view, setView, onLock }) {
+  const [name, setName] = useState('')
+  useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
+
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -23,8 +35,8 @@ export default function Sidebar({ view, setView, onLock }) {
         <span className="ico">🔒</span> Lock vault
       </button>
       <div className="profile">
-        <div className="avatar">AM</div>
-        <div className="meta"><b>Amit M.</b><small>Family · 4 profiles</small></div>
+        <div className="avatar">{initials(name)}</div>
+        <div className="meta"><b>{name || 'Your vault'}</b><small>This device</small></div>
       </div>
     </aside>
   )
