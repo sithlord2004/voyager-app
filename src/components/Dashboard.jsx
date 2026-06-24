@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
 import { geocode, currentWeather, WMO, FLAGS } from '../lib/weather.js'
 import { getFlightStatus, statusChip } from '../lib/flights.js'
+import { getSetting } from '../lib/db.js'
 
 const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT']
 
 export default function Dashboard({ trips, documents, people }) {
+  const [name, setName] = useState('')
+  useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
   const next = [...trips].filter(t => new Date(t.endDate) >= new Date())
     .sort((a, b) => a.startDate.localeCompare(b.startDate))[0] || trips[0]
   const [city, setCity] = useState(next?.destinationCity || 'Kyoto')
@@ -42,7 +47,7 @@ export default function Dashboard({ trips, documents, people }) {
     <div>
       <div className="topbar">
         <div>
-          <h2>Good evening, Amit ✈️</h2>
+          <h2>{greeting}{name ? ', ' + name : ''} ✈️</h2>
           <div className="sub">Your next adventure is just around the corner.</div>
         </div>
       </div>
