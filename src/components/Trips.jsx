@@ -65,7 +65,7 @@ export default function Trips({ trips, documents, reload }) {
   const [importing, setImporting] = useState(false)
   const [adding, setAdding] = useState(false)
   async function onDelete(trip) {
-    await db.trips.delete(trip.id)
+    await deleteTrip(trip.id)
     reload?.()
   }
   return (
