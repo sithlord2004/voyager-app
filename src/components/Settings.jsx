@@ -17,10 +17,17 @@ export default function Settings({ vaultKey, people = [], reload }) {
   const [nameMsg, setNameMsg] = useState('')
   const [newPerson, setNewPerson] = useState('')
   const [confirmId, setConfirmId] = useState(null)
+  const [theme, setTheme] = useState('auto')
   const fileRef = useRef(null)
 
   useEffect(() => { isPasskeyEnabled().then(setPkEnabled) }, [])
   useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
+  useEffect(() => { getSetting('theme').then(t => setTheme(t || 'auto')) }, [])
+  async function applyTheme(t) {
+    setTheme(t)
+    document.documentElement.setAttribute('data-theme', t)
+    await setSetting('theme', t)
+  }
 
   async function addPerson() {
     const nm = newPerson.trim()
@@ -82,6 +89,18 @@ export default function Settings({ vaultKey, people = [], reload }) {
       <div className="topbar"><div><h2>Settings ⚙️</h2><div className="sub">Cloud sync is optional — your data stays on-device unless you turn it on.</div></div></div>
 
       <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
+        <h3><span className="ttl-ico">🎨</span> Appearance</h3>
+        <p className="desc">Choose a theme. Auto follows your device's light/dark setting.</p>
+        <div className="seg">
+          {['auto', 'light', 'dark'].map(t => (
+            <button key={t} className={theme === t ? 'active' : ''} onClick={() => applyTheme(t)}>
+              {t === 'auto' ? '🌗 Auto' : t === 'light' ? '☀️ Light' : '🌙 Dark'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
         <h3><span className="ttl-ico">👋</span> Your name</h3>
         <p className="desc">Used to greet you on the dashboard. This is per-device, so each person who installs the app sets their own.</p>
         <label>Display name
@@ -107,69 +126,4 @@ export default function Settings({ vaultKey, people = [], reload }) {
         ))}
         <div className="file-row" style={{ marginTop: 6 }}>
           <input value={newPerson} onChange={e => setNewPerson(e.target.value)} placeholder="Add a person's name"
-            onKeyDown={e => e.key === 'Enter' && addPerson()} style={{ flex: 1, minWidth: 160 }} />
-          <button className="btn" onClick={addPerson}>＋ Add</button>
-        </div>
-      </div>
-
-      <div className="card" style={{ maxWidth: 620 }}>
-        <h3><span className="ttl-ico">☁️</span> Encrypted cloud sync</h3>
-        <p className="desc">When on, only the <b>already-encrypted</b> document blobs (plus expiry metadata for alerts) are uploaded. The server can never read your documents.</p>
-
-        <label className="switch-row">
-          <span>Enable sync</span>
-          <input type="checkbox" checked={cfg.enabled} onChange={e => update({ enabled: e.target.checked })} />
-        </label>
-
-        <label>Sync endpoint
-          <input value={cfg.endpoint} onChange={e => update({ endpoint: e.target.value })}
-                 placeholder="https://your-app.vercel.app/api" />
-        </label>
-        <label>Family ID
-          <input value={cfg.familyId} onChange={e => update({ familyId: e.target.value })}
-                 placeholder="maini-family" />
-        </label>
-        <label>Access token
-          <input type="password" value={cfg.token} onChange={e => update({ token: e.target.value })}
-                 placeholder="shared secret from your backend" />
-        </label>
-
-        <div className="modal-actions" style={{ marginTop: 8 }}>
-          <button className="btn ghost" onClick={save}>Save</button>
-          <button className="btn" onClick={test} disabled={!cfg.enabled}>☁️ Sync now</button>
-        </div>
-        {msg && <div className="desc" style={{ marginTop: 12 }}>{msg}</div>}
-        {cfg.lastSync ? <div className="desc">Last sync: {new Date(cfg.lastSync).toLocaleString()}</div> : null}
-      </div>
-
-      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
-        <h3><span className="ttl-ico">💾</span> Encrypted backup</h3>
-        <p className="desc">Download an encrypted <code>.voyager</code> file with everything in your vault. Document blobs and metadata are encrypted — the file is useless without your passphrase or recovery code. Restore it on a new device or after a wipe.</p>
-        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
-          <button className="btn" onClick={doExport}>⬇️ Export backup</button>
-          <button className="btn ghost" onClick={() => fileRef.current?.click()}>⬆️ Restore backup</button>
-          <input ref={fileRef} type="file" accept=".voyager,application/json" hidden
-                 onChange={e => doImport(e.target.files[0])} />
-        </div>
-        {backupMsg && <div className="desc" style={{ marginTop: 12 }}>{backupMsg}</div>}
-      </div>
-
-      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
-        <h3><span className="ttl-ico">👤</span> Face ID / passkey unlock</h3>
-        <p className="desc">Add a device passkey (Face ID, Touch ID, Windows Hello) for quick unlock. Your passphrase stays the master key; this is an extra, device-bound shortcut. Needs a supporting browser.</p>
-        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
-          <button className="btn" onClick={togglePasskey} disabled={!passkeySupported()}>
-            {pkEnabled ? '🚫 Remove passkey' : '👤 Enable on this device'}
-          </button>
-          {!passkeySupported() && <span className="desc">Not available in this browser.</span>}
-        </div>
-        {pkMsg && <div className="desc" style={{ marginTop: 12 }}>{pkMsg}</div>}
-      </div>
-
-      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
-        <h3><span className="ttl-ico">🔑</span> Passphrase &amp; recovery</h3>
-        <p className="desc">Your vault is protected by your passphrase, with a one-time <b>recovery code</b> shown at setup as the backup way in. If you forget your passphrase, choose “Forgot passphrase?” on the lock screen and enter that code to set a new one. Keep the code somewhere safe — anyone who has it can open the vault.</p>
-      </div>
-    </div>
-  )
-}
+            onKeyDown={e => e.key === 'Enter'
