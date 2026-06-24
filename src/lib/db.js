@@ -31,6 +31,10 @@ export async function createTrip(trip) {
   return rec
 }
 
+export async function updateTrip(id, patch) {
+  await db.trips.update(id, { ...patch, updatedAt: Date.now(), dirty: 1 })
+}
+
 export async function deleteTrip(id) {
   await db.trips.update(id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
 }
