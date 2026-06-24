@@ -8,6 +8,7 @@ import Vault from './components/Vault.jsx'
 import Packing from './components/Packing.jsx'
 import Emergency from './components/Emergency.jsx'
 import Settings from './components/Settings.jsx'
+import Help from './components/Help.jsx'
 
 export default function App() {
   const [vaultKey, setVaultKey] = useState(null)
@@ -43,6 +44,7 @@ export default function App() {
         {view === 'packing' && <Packing trips={data.trips} packing={data.packing} reload={reload} />}
         {view === 'emergency' && <Emergency trips={data.trips} />}
         {view === 'settings' && <Settings vaultKey={vaultKey} people={data.people} reload={reload} />}
+        {view === 'help' && <Help />}
       </main>
     </div>
   )
