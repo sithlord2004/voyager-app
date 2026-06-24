@@ -190,4 +190,12 @@ input{font-family:inherit}
 .card label input{width:100%;margin-top:5px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;outline:none}
 
 @media(max-width:1080px){.two-col{grid-template-columns:1fr}}
-@media(max-width:760px){.app{grid-template-columns:1fr}.sidebar{flex-direction:row;height:auto;position:static;overflow-x:auto}.profile{display:none}.main{padding:18px}}
+@media(max-width:760px){.app{grid-template-columns:1fr}.sidebar{flex-direction:row;height:auto;position:sticky;top:0;z-index:50;overflow-x:auto;background:#0d1117;border-bottom:1px solid var(--border-soft)}.brand{padding:6px 8px}.nav-label{display:none}.profile{display:none}.main{padding:18px}}```
+
+4. **Commit changes**, wait a minute, hard-refresh.
+
+What changed: the nav bar is now **sticky** (`position: sticky; top: 0`), so it stays pinned to the top of the screen as you scroll, with a solid background so content doesn't show through behind it. That fixes the "bar moves down" behaviour in every section.
+
+(And to answer your other question — the bar moving wasn't about the pages being empty; it was just that the nav was set to scroll away with the page. This pins it regardless of how much content a page has.)
+
+If you can't spot the line, tell me and I'll paste the whole `styles.css` so you can replace the lot. 👍
