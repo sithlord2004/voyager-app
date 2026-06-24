@@ -144,4 +144,32 @@ export default function Settings({ vaultKey, people = [], reload }) {
 
       <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
         <h3><span className="ttl-ico">💾</span> Encrypted backup</h3>
-        <p
+        <p className="desc">Download an encrypted <code>.voyager</code> file with everything in your vault. Document blobs and metadata are encrypted — the file is useless without your passphrase or recovery code. Restore it on a new device or after a wipe.</p>
+        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
+          <button className="btn" onClick={doExport}>⬇️ Export backup</button>
+          <button className="btn ghost" onClick={() => fileRef.current?.click()}>⬆️ Restore backup</button>
+          <input ref={fileRef} type="file" accept=".voyager,application/json" hidden
+                 onChange={e => doImport(e.target.files[0])} />
+        </div>
+        {backupMsg && <div className="desc" style={{ marginTop: 12 }}>{backupMsg}</div>}
+      </div>
+
+      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
+        <h3><span className="ttl-ico">👤</span> Face ID / passkey unlock</h3>
+        <p className="desc">Add a device passkey (Face ID, Touch ID, Windows Hello) for quick unlock. Your passphrase stays the master key; this is an extra, device-bound shortcut. Needs a supporting browser.</p>
+        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
+          <button className="btn" onClick={togglePasskey} disabled={!passkeySupported()}>
+            {pkEnabled ? '🚫 Remove passkey' : '👤 Enable on this device'}
+          </button>
+          {!passkeySupported() && <span className="desc">Not available in this browser.</span>}
+        </div>
+        {pkMsg && <div className="desc" style={{ marginTop: 12 }}>{pkMsg}</div>}
+      </div>
+
+      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
+        <h3><span className="ttl-ico">🔑</span> Passphrase &amp; recovery</h3>
+        <p className="desc">Your vault is protected by your passphrase, with a one-time <b>recovery code</b> shown at setup as the backup way in. If you forget your passphrase, choose “Forgot passphrase?” on the lock screen and enter that code to set a new one. Keep the code somewhere safe — anyone who has it can open the vault.</p>
+      </div>
+    </div>
+  )
+}
