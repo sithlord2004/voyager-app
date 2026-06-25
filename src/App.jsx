@@ -24,7 +24,7 @@ export default function App() {
     const [people, trips, documents, packing] = await Promise.all([
       db.people.toArray(), db.trips.toArray(), db.documents.toArray(), db.packing.toArray()
     ])
-    setData({ people, trips: trips.filter(t => !t.deleted), documents, packing })
+    setData({ people: people.filter(p => !p.deleted), trips: trips.filter(t => !t.deleted), documents, packing })
   }, [])
 
   // Load data once the vault is unlocked.
