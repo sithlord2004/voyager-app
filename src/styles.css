@@ -17,6 +17,7 @@
   }
 }
 *{box-sizing:border-box;margin:0;padding:0}
+html{scrollbar-gutter:stable;overflow-y:scroll}
 body{background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.45}
 body::before{content:"";position:fixed;inset:0;z-index:-1;
   background:radial-gradient(1100px 500px at 80% -10%,rgba(59,130,246,.14),transparent 60%),
