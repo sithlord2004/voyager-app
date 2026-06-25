@@ -8,7 +8,7 @@ const P = ({ children }) => <p style={{ fontSize: 13.5, color: 'var(--text-2)', 
 export default function Help() {
   return (
     <div>
-      <div className="topbar"><div><h2>How to use 📖</h2>
+      <div className="topbar"><div><h2><Icon name="help" size={23} /> How to use</h2>
         <div className="sub">A quick guide to every part of Voyager</div></div></div>
 
       <div className="card" style={card}>
