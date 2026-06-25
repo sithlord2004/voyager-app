@@ -30,19 +30,22 @@ export default function Settings({ vaultKey, people = [], reload }) {
     await setSetting('theme', t)
   }
 
-  async function addPerson() {
+async function addPerson() {
     const nm = newPerson.trim()
     if (!nm) return
-    await db.people.add({ id: newId(), name: nm, initials: makeInitials(nm), color: PALETTE[(people || []).length % PALETTE.length], relationship: 'family' })
+    await createPerson({ name: nm, initials: makeInitials(nm), color: PALETTE[people.length % PALETTE.length] })
     setNewPerson('')
+    try { if ((await getSyncConfig()).enabled) await syncNow() } catch { /* offline is fine */ }
     reload?.()
   }
   async function removePerson(id) {
     if (confirmId !== id) { setConfirmId(id); return }
+    // Soft-delete that person's documents too, so they stop alerting and the removal syncs.
     const docs = await db.documents.where('personId').equals(id).toArray()
     for (const d of docs) await db.documents.update(d.id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
-    await db.people.delete(id)
+    await deletePerson(id)
     setConfirmId(null)
+    try { if ((await getSyncConfig()).enabled) await syncNow() } catch { /* offline is fine */ }
     reload?.()
   }
   async function saveName() {
