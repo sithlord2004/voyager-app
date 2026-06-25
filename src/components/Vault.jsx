@@ -111,7 +111,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
     flash('🗑 Deleted')
   }
 
-  const list = documents.filter(d => !d.deleted && (filter === 'all' || d.personId === filter))
+  const list = documents.filter(d => !d.deleted && d.type !== '__profile__' && (filter === 'all' || d.personId === filter))
 
   return (
     <div>
