@@ -104,7 +104,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
   return (
     <div>
       <div className="topbar">
-        <div><h2>Document Vault 🔐</h2><div className="sub">End-to-end encrypted (AES-256) · stored on this device</div></div>
+        <div><h2><Icon name="shield" size={23} /> Document Vault</h2><div className="sub">End-to-end encrypted (AES-256) · stored on this device</div></div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
           {syncOn && <button className="btn ghost" onClick={handleSync}>☁️ Sync now</button>}
           <button className="btn" onClick={() => setAdding(true)}>＋ Add document</button>
