@@ -89,7 +89,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
 
   return (
     <div>
-      <div className="topbar"><div><h2>Settings ⚙️</h2><div className="sub">Cloud sync is optional — your data stays on-device unless you turn it on.</div></div></div>
+      <div className="topbar"><div><h2><Icon name="settings" size={23} /> Settings</h2><div className="sub">Cloud sync is optional — your data stays on-device unless you turn it on.</div></div></div>
 
       <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
         <h3><Icon name="theme" /> Appearance</h3>
