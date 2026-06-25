@@ -60,7 +60,7 @@ input{font-family:inherit}
 .profile .meta b{font-size:13px;display:block}
 .profile .meta small{font-size:11px;color:var(--text-3)}
 
-.main{padding:26px 34px 60px;max-width:1180px;width:100%}
+..main{padding:26px 34px 60px;max-width:1180px;width:100%;overflow-x:clip;min-width:0}
 .topbar{display:flex;align-items:center;gap:16px;margin-bottom:24px}
 .topbar h2{font-size:25px;font-weight:700;letter-spacing:-.5px;display:inline-flex;align-items:center;gap:10px}
 .topbar .sub{color:var(--text-3);font-size:13px;margin-top:2px}
