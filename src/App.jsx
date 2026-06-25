@@ -11,10 +11,11 @@ import Settings from './components/Settings.jsx'
 import Help from './components/Help.jsx'
 
 export default function App() {
-  const [vaultKey, setVaultKey] = useState(null)
+  const [vaultKey, setVaultKey] = useState(null)   // in-memory only; null = locked
   const [view, setView] = useState('dashboard')
   const [data, setData] = useState(null)
 
+  // Apply saved theme (auto / light / dark) on load.
   useEffect(() => {
     getSetting('theme').then(t => document.documentElement.setAttribute('data-theme', t || 'auto'))
   }, [])
@@ -26,6 +27,7 @@ export default function App() {
     setData({ people, trips: trips.filter(t => !t.deleted), documents, packing })
   }, [])
 
+  // Load data once the vault is unlocked.
   useEffect(() => {
     if (!vaultKey) return
     (async () => { await seedIfEmpty(); await reload() })()
@@ -42,7 +44,7 @@ export default function App() {
         {view === 'trips' && <Trips trips={data.trips} documents={data.documents} reload={reload} />}
         {view === 'vault' && <Vault vaultKey={vaultKey} documents={data.documents} people={data.people} reload={reload} />}
         {view === 'packing' && <Packing trips={data.trips} packing={data.packing} reload={reload} />}
-        {view === 'emergency' && <Emergency trips={data.trips} />}
+        {view === 'emergency' && <Emergency trips={data.trips} vaultKey={vaultKey} documents={data.documents} reload={reload} />}
         {view === 'settings' && <Settings vaultKey={vaultKey} people={data.people} reload={reload} />}
         {view === 'help' && <Help />}
       </main>
