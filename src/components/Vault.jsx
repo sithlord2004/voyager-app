@@ -74,6 +74,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
   const [msg, setMsg] = useState('')
   const [adding, setAdding] = useState(false)
   const [syncOn, setSyncOn] = useState(false)
+  const [viewer, setViewer] = useState(null) // { url, mime, name } for the in-app viewer
   const ownerName = id => people.find(p => p.id === id)?.name || ''
 
   useEffect(() => { getSyncConfig().then(c => setSyncOn(c.enabled)) }, [])
@@ -82,9 +83,18 @@ export default function Vault({ vaultKey, documents, people, reload }) {
     setMsg('Decrypting…')
     const bytes = await decryptBytes(vaultKey, doc.blob)
     const url = URL.createObjectURL(new Blob([bytes], { type: doc.mime || 'application/octet-stream' }))
-    window.open(url, '_blank')
     setMsg('')
+    const mime = doc.mime || ''
+    if (mime.startsWith('image/') || mime === 'application/pdf') {
+      setViewer({ url, mime, name: doc.fileName || doc.title })
+    } else {
+      // Other file types: trigger a download (more reliable than a new tab in PWAs).
+      const a = document.createElement('a')
+      a.href = url; a.download = doc.fileName || doc.title || 'document'
+      document.body.appendChild(a); a.click(); a.remove()
+    }
   }
+  function closeViewer() { if (viewer) URL.revokeObjectURL(viewer.url); setViewer(null) }
 
   async function handleSync() {
     setMsg('Syncing…')
@@ -93,6 +103,8 @@ export default function Vault({ vaultKey, documents, people, reload }) {
   }
   function flash(t) { setMsg(t); reload(); setTimeout(() => setMsg(''), 2600) }
 
+  // Soft-delete: mark removed + dirty so it also clears from synced devices.
+  // (No window.confirm — it's blocked in installed PWAs; the button two-taps instead.)
   async function onDelete(doc) {
     await db.documents.update(doc.id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
     if (syncOn) { try { await syncNow() } catch {} }
@@ -130,6 +142,22 @@ export default function Vault({ vaultKey, documents, people, reload }) {
         onClose={() => setAdding(false)}
         onSaved={() => { setAdding(false); flash('✅ Encrypted & stored on device') }} />}
 
+      {viewer && (
+        <div className="modal-backdrop" onClick={closeViewer}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '94vw', width: 'auto', textAlign: 'center' }}>
+            {viewer.mime.startsWith('image/')
+              ? <img src={viewer.url} alt={viewer.name}
+                  style={{ maxWidth: '100%', maxHeight: '78vh', borderRadius: 10, display: 'block', margin: '0 auto' }} />
+              : <iframe src={viewer.url} title={viewer.name}
+                  style={{ width: '86vw', maxWidth: 760, height: '78vh', border: 'none', borderRadius: 10, background: '#fff' }} />}
+            <div className="modal-actions" style={{ justifyContent: 'center', marginTop: 14 }}>
+              <a className="btn ghost" href={viewer.url} download={viewer.name}>⬇️ Download</a>
+              <button className="btn" onClick={closeViewer}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {msg && <div className="toast show">{msg}</div>}
     </div>
   )
@@ -145,6 +173,7 @@ function AddDocModal({ people, vaultKey, onClose, onSaved }) {
   const [number, setNumber] = useState('')
   const [ocrMsg, setOcrMsg] = useState('')
 
+  // Read the passport MRZ and pre-fill the form (all in-browser).
   async function autoFill() {
     if (!file) return
     setOcrMsg('Reading passport… (first run downloads the OCR model)')
