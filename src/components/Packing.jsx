@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { db, newId } from '../lib/db.js'
+import { Icon } from './Icon.jsx'
 
 const CATEGORIES = ['Documents', 'Clothing', 'Weather-based', 'Electronics', 'Toiletries', 'Kids', 'Other']
 
@@ -36,7 +37,7 @@ export default function Packing({ trips, packing, reload }) {
   return (
     <div>
       <div className="topbar">
-        <div><h2>Packing 🎒</h2><div className="sub">Tick items, add your own, remove what you don't need.</div></div>
+        <div><h2><Icon name="bag" size={23} /> Packing</h2><div className="sub">Tick items, add your own, remove what you don't need.</div></div>
         {trips.length > 1 && (
           <select value={tripId} onChange={e => setTripId(e.target.value)}
             style={{ marginLeft: 'auto', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '9px 12px', color: 'var(--text)' }}>
