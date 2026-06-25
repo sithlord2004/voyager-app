@@ -61,7 +61,7 @@ input{font-family:inherit}
 
 .main{padding:26px 34px 60px;max-width:1180px;width:100%}
 .topbar{display:flex;align-items:center;gap:16px;margin-bottom:24px}
-.topbar h2{font-size:25px;font-weight:700;letter-spacing:-.5px}
+.topbar h2{font-size:25px;font-weight:700;letter-spacing:-.5px;display:inline-flex;align-items:center;gap:10px}
 .topbar .sub{color:var(--text-3);font-size:13px;margin-top:2px}
 
 .grid{display:grid;gap:18px}
