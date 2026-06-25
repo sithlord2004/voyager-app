@@ -6,8 +6,15 @@
 //
 // Conflict strategy: last-write-wins by `updatedAt` — appropriate for a
 // personal/family app (no real-time CRDT machinery).
+//
+// Uploads go up in small, size-capped batches so a big set of documents can't
+// blow past the serverless request-size limit in one giant request. Each batch
+// is marked clean as soon as it lands, so a sync that's interrupted just resumes
+// where it left off next time.
 // ---------------------------------------------------------------------------
 import { db, getSetting, setSetting, markSynced } from './db.js'
+
+const MAX_BATCH_BYTES = 3_000_000   // keep each request well under typical ~4.5MB limits
 
 export async function getSyncConfig() {
   return (await getSetting('sync')) || { enabled: false, endpoint: '', token: '', familyId: '', lastSync: 0 }
@@ -31,31 +38,61 @@ async function mergeInto(table, remote) {
   return pulled
 }
 
-// Push local dirty docs + trips + people, pull anything changed remotely since last sync, merge.
+// Push local dirty records + pull remote changes, in safe-sized batches.
 export async function syncNow() {
   const cfg = await getSyncConfig()
   if (!cfg.enabled) throw new Error('Sync is off')
   if (!cfg.endpoint || !cfg.token) throw new Error('Add your sync endpoint and token in Settings')
 
-  const dirtyDocs = await db.documents.where('dirty').equals(1).toArray()
-  const dirtyTrips = await db.trips.where('dirty').equals(1).toArray()
-  const dirtyPeople = await db.people.where('dirty').equals(1).toArray()
+  const url = cfg.endpoint.replace(/\/$/, '') + '/sync'
+  const since = cfg.lastSync || 0
+  let pushed = 0, pulled = 0, failed = 0, serverTime = Date.now()
 
-  const res = await fetch(cfg.endpoint.replace(/\/$/, '') + '/sync', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.token },
-    body: JSON.stringify({ familyId: cfg.familyId, since: cfg.lastSync || 0, documents: dirtyDocs, trips: dirtyTrips, people: dirtyPeople })
-  })
-  if (!res.ok) throw new Error('Sync failed: ' + res.status)
-  const { documents: remoteDocs = [], trips: remoteTrips = [], people: remotePeople = [], serverTime } = await res.json()
+  // One request. `body` supplies whichever table's batch we're pushing (others stay empty).
+  async function call(body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.token },
+      body: JSON.stringify({ familyId: cfg.familyId, since, documents: [], trips: [], people: [], ...body })
+    })
+    if (!res.ok) throw new Error('Sync failed: ' + res.status)
+    return res.json()
+  }
 
-  const pulledDocs = await mergeInto('documents', remoteDocs)
-  const pulledTrips = await mergeInto('trips', remoteTrips)
-  const pulledPeople = await mergeInto('people', remotePeople)
+  // 1) Download remote changes first (small on the device that just added files).
+  const r = await call({})
+  pulled += await mergeInto('documents', r.documents || [])
+  pulled += await mergeInto('trips', r.trips || [])
+  pulled += await mergeInto('people', r.people || [])
+  serverTime = r.serverTime || serverTime
 
-  await markSynced('documents', dirtyDocs.map(d => d.id))
-  await markSynced('trips', dirtyTrips.map(t => t.id))
-  await markSynced('people', dirtyPeople.map(p => p.id))
-  await setSyncConfig({ ...cfg, lastSync: serverTime || Date.now() })
-  return { pushed: dirtyDocs.length + dirtyTrips.length + dirtyPeople.length, pulled: pulledDocs + pulledTrips + pulledPeople }
+  // 2) Upload local dirty records, table by table, in size-capped batches.
+  async function pushTable(table) {
+    const dirty = await db[table].where('dirty').equals(1).toArray()
+    let batch = [], bytes = 0
+    async function flush() {
+      if (!batch.length) return
+      const chunk = batch; batch = []; bytes = 0
+      try {
+        await call({ [table]: chunk })
+        await markSynced(table, chunk.map(x => x.id))
+        pushed += chunk.length
+      } catch {
+        failed += chunk.length        // leave them dirty so a later sync retries
+      }
+    }
+    for (const rec of dirty) {
+      const sz = JSON.stringify(rec).length
+      if (batch.length && bytes + sz > MAX_BATCH_BYTES) await flush()
+      batch.push(rec); bytes += sz
+      if (bytes >= MAX_BATCH_BYTES) await flush()   // an oversized record goes on its own
+    }
+    await flush()
+  }
+  await pushTable('people')      // people & trips first so owners exist before documents
+  await pushTable('trips')
+  await pushTable('documents')
+
+  await setSyncConfig({ ...cfg, lastSync: serverTime })
+  return { pushed, pulled, failed }
 }
