@@ -8,6 +8,7 @@ import { Icon } from './Icon.jsx'
 const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
 const makeInitials = n => (n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?'
 
+// Settings: name, family members, cloud sync, backup, passkey.
 export default function Settings({ vaultKey, people = [], reload }) {
   const [cfg, setCfg] = useState(null)
   const [msg, setMsg] = useState('')
@@ -30,7 +31,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
     await setSetting('theme', t)
   }
 
-async function addPerson() {
+  async function addPerson() {
     const nm = newPerson.trim()
     if (!nm) return
     await createPerson({ name: nm, initials: makeInitials(nm), color: PALETTE[people.length % PALETTE.length] })
@@ -87,6 +88,7 @@ async function addPerson() {
     await setSyncConfig(cfg)
     setMsg('Syncing…')
     try { const r = await syncNow(); setMsg(`✅ Synced · pushed ${r.pushed}, pulled ${r.pulled}` + (r.failed ? `, ${r.failed} too large` : '')) }
+    catch (e) { setMsg('⚠️ ' + e.message) }
   }
 
   return (
