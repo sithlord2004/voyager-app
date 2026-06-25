@@ -44,7 +44,7 @@ export default function App() {
         {view === 'trips' && <Trips trips={data.trips} documents={data.documents} reload={reload} />}
         {view === 'vault' && <Vault vaultKey={vaultKey} documents={data.documents} people={data.people} reload={reload} />}
         {view === 'packing' && <Packing trips={data.trips} packing={data.packing} reload={reload} />}
-        {view === 'emergency' && <Emergency trips={data.trips} vaultKey={vaultKey} documents={data.documents} reload={reload} />}
+        {view === 'emergency' && <Emergency trips={data.trips} />}
         {view === 'settings' && <Settings vaultKey={vaultKey} people={data.people} reload={reload} />}
         {view === 'help' && <Help />}
       </main>
