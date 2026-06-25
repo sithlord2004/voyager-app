@@ -98,8 +98,10 @@ export default function Vault({ vaultKey, documents, people, reload }) {
 
   async function handleSync() {
     setMsg('Syncing…')
-    try { const r = await syncNow(); flash(`✅ Synced · ↑${r.pushed} ↓${r.pulled}`) }
-    catch (e) { flash('⚠️ ' + e.message) }
+    try {
+      const r = await syncNow()
+      flash(`✅ Synced · ↑${r.pushed} ↓${r.pulled}` + (r.failed ? ` · ⚠️ ${r.failed} too large` : ''))
+    } catch (e) { flash('⚠️ ' + e.message) }
   }
   function flash(t) { setMsg(t); reload(); setTimeout(() => setMsg(''), 2600) }
 
