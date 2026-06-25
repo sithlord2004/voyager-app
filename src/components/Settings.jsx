@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getSyncConfig, setSyncConfig, syncNow } from '../lib/sync.js'
 import { exportBackup, importBackup } from '../lib/backup.js'
 import { passkeySupported, isPasskeyEnabled, enablePasskey, disablePasskey } from '../lib/webauthn.js'
-import { db, newId, getSetting, setSetting } from '../lib/db.js'
+import { db, getSetting, setSetting, createPerson, deletePerson } from '../lib/db.js'
 import { Icon } from './Icon.jsx'
 
 const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
