@@ -86,8 +86,7 @@ async function addPerson() {
   async function test() {
     await setSyncConfig(cfg)
     setMsg('Syncing…')
-    try { const r = await syncNow(); setMsg(`✅ Synced · pushed ${r.pushed}, pulled ${r.pulled}`) }
-    catch (e) { setMsg('⚠️ ' + e.message) }
+    try { const r = await syncNow(); setMsg(`✅ Synced · pushed ${r.pushed}, pulled ${r.pulled}` + (r.failed ? `, ${r.failed} too large` : '')) }
   }
 
   return (
