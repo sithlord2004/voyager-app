@@ -109,7 +109,7 @@ export default function Emergency({ trips = [] }) {
 
   return (
     <div>
-      <div className="topbar"><div><h2>Emergency Card 🆘</h2>
+      <div className="topbar"><div><h2><Icon name="lifebuoy" size={23} /> Emergency Card</h2>
         <div className="sub">Local numbers, nearby hospitals &amp; your embassy — for wherever you are</div></div></div>
 
       <div className="file-row" style={{ maxWidth: 620, marginBottom: 16 }}>
