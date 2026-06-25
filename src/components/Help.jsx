@@ -46,6 +46,7 @@ export default function Help() {
           <li style={li}><b>View</b> decrypts and opens a file; <b>🗑 Delete</b> (tap again) removes it. Filter by person with the chips.</li>
         </ul>
         <P>Everything is encrypted with your passphrase — only ciphertext ever leaves your device.</P>
+        <P><b>Getting files from your computer:</b> the easiest way is to <b>AirDrop</b> the file from your Mac to your phone (Finder → right‑click → Share → AirDrop), then on the phone tap <b>＋ Add document → 📁 Choose file</b> and pick it. Email, iCloud Drive or Google Drive work the same way — get the file onto the phone first, then add it. Adding straight on the phone means it's encrypted on the phone with no extra setup.</P>
       </div>
 
       <div className="card" style={card}>
