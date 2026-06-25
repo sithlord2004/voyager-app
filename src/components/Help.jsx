@@ -83,6 +83,7 @@ export default function Help() {
           <li style={li}>It reloads — unlock with your main passphrase, and your documents are there.</li>
         </ol>
         <P>For ongoing sync, also turn on <b>Cloud sync</b> with the same settings on both. Same passphrase alone isn't enough to share documents — you must move the vault with the backup.</P>
+        <P><b>Sharing with a partner:</b> trips, documents and family members all sync once both devices use the same Cloud sync details (and the vault has been restored once from your backup, so documents can be opened). Your partner should <b>not</b> add herself as a new family member — that creates a separate entry, and documents won't appear under her. Instead, let your family list sync across; everyone then lines up under the right names automatically.</P>
       </div>
 
       <div className="card" style={card}>
