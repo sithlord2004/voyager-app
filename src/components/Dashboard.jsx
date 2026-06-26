@@ -101,4 +101,105 @@ export default function Dashboard({ trips, documents, people, packing = [] }) {
         </div>
       </div>
 
-      <div className="grid
+      <div className="grid dash">
+        <div className="hero">
+          <div className="bgimg" />
+          <div className="toprow">
+            <span className="pill">{code[0]} {loading ? 'Loading…' : code[1]}</span>
+            <form className="wx-search" onSubmit={e => { e.preventDefault(); load(city) }}>
+              <span>🔎</span>
+              <input value={city} onChange={e => setCity(e.target.value)} placeholder="Try any city…" />
+            </form>
+          </div>
+          <div>
+            <h2>{place ? `${place.name} ${flag}` : city}</h2>
+            <div className="when">{place ? `${place.admin1 ? place.admin1 + ', ' : ''}${place.country} · live local weather` : 'Fetching…'}</div>
+            <div className={'weather-row' + (loading ? ' wx-loading' : '')}>
+              <div className="temp">{cur ? Math.round(cur.temperature_2m) : '–'}<sup>°C</sup></div>
+              <div className="wx-meta">
+                {cur ? <>Feels like {Math.round(cur.apparent_temperature)}° · Humidity {cur.relative_humidity_2m}%<br />
+                  Wind {Math.round(cur.wind_speed_10m)} km/h<br />
+                  <b style={{ opacity: .9 }}>🟢 Live · Open-Meteo</b></> : 'Fetching live data…'}
+              </div>
+            </div>
+            <div className="forecast">
+              {wx?.daily?.time?.map((d, i) => {
+                const c = WMO[wx.daily.weather_code[i]] || ['🌡️','']
+                return <div className="fc" key={d}>
+                  <b>{DOW[new Date(d + 'T00:00').getDay()]}</b>
+                  <div className="ic">{c[0]}</div>
+                  <small>{Math.round(wx.daily.temperature_2m_max[i])}°/{Math.round(wx.daily.temperature_2m_min[i])}°</small>
+                </div>
+              })}
+            </div>
+            {cur && wx?.daily && (
+              <div className="wx-extra">
+                {destTime && <div className="wxx"><span>🕐</span>{destTime} local</div>}
+                {wx.daily.sunrise?.[0] && <div className="wxx"><span>🌅</span>{wx.daily.sunrise[0].slice(11, 16)}</div>}
+                {wx.daily.sunset?.[0] && <div className="wxx"><span>🌇</span>{wx.daily.sunset[0].slice(11, 16)}</div>}
+                {uv != null && <div className="wxx"><span>☀️</span>UV {Math.round(uv)} · {uvLabel}</div>}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="card ready">
+          <h3><Icon name="shield" /> Trip readiness</h3>
+          {next ? (
+            <div className="ready-body">
+              <Ring pct={readyScore} />
+              <div className="ready-list">
+                {readyItems.map(it => (
+                  <div className={'ready-item' + (it.ok ? ' done' : '')} key={it.label}>
+                    <span className="rk">{it.ok ? '✓' : '○'}</span>{it.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : <div className="desc">Add a trip to see how ready you are.</div>}
+        </div>
+
+        <div className="card">
+          <h3><Icon name="plane" /> Flights</h3>
+          {flightLegs.length ? flightLegs.map((l, i) => {
+            const s = statuses[l.number + '_' + (l.date || next.startDate)]
+            const [cls, label] = s ? statusChip(s.status) : ['st-ontime', 'scheduled']
+            return (
+              <div className="flight" key={i} style={{ marginBottom: 10 }}>
+                <div className="air">🛫</div>
+                <div className="route">
+                  <div className="ap">
+                    <b>{s?.departure?.airport || l.from || '—'}</b>
+                    <div className="time">{s?.departure?.revised?.slice(11, 16) || s?.departure?.scheduled?.slice(11, 16) || ''}</div>
+                  </div>
+                  <div className="planeline"><span className="dur">{l.number}{s?.departure?.gate ? ` · Gate ${s.departure.gate}` : ''}</span></div>
+                  <div className="ap">
+                    <b>{s?.arrival?.airport || l.to || '—'}</b>
+                    <div className="time">{s?.arrival?.scheduled?.slice(11, 16) || ''}</div>
+                  </div>
+                </div>
+                <span className={'status-chip ' + cls} style={{ marginLeft: 8 }}>{s ? `🟢 ${label}` : label}</span>
+              </div>
+            )
+          }) : <div className="desc">No flights on this trip</div>}
+          {flightLegs.length > 0 && Object.keys(statuses).length === 0 &&
+            <div className="desc" style={{ marginTop: 2 }}>Showing scheduled — live status needs the backend (Settings) and is available ~7 days out.</div>}
+        </div>
+
+        <div className="card">
+          <h3><Icon name="bell" /> Needs your attention</h3>
+          {alerts.length ? alerts.slice(0, 3).map(({ d, days }) => (
+            <div key={d.id} className={'alert ' + (days < 90 ? 'danger' : 'warn')}>
+              <div className="ai">{days < 90 ? '🛂' : '🪪'}</div>
+              <div className="body">
+                <b>{ownerName(d.personId)}'s {d.type.toLowerCase()} expires soon</b>
+                <small>{new Date(d.expiryDate).toLocaleDateString()}</small>
+              </div>
+              <div className="when">{days} days</div>
+            </div>
+          )) : <div className="desc">Nothing expiring soon 🎉</div>}
+        </div>
+      </div>
+    </div>
+  )
+}
