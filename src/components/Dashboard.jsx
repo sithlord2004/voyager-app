@@ -59,6 +59,15 @@ export default function Dashboard({ trips, documents, people, packing = [] }) {
   const code = cur ? (WMO[cur.weather_code] || ['🌡️','—']) : ['…','']
   const flag = place ? (FLAGS[place.country_code] || '') : ''
 
+  // Destination local time + sun + UV (all from the same Open-Meteo call).
+  const offs = wx?.utc_offset_seconds
+  const destTime = typeof offs === 'number'
+    ? new Date(Date.now() + new Date().getTimezoneOffset() * 60000 + offs * 1000)
+        .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null
+  const uv = wx?.daily?.uv_index_max?.[0]
+  const uvLabel = uv == null ? '' : uv < 3 ? 'Low' : uv < 6 ? 'Moderate' : uv < 8 ? 'High' : uv < 11 ? 'Very high' : 'Extreme'
+
   // expiry alerts — ignore deleted docs and docs whose owner no longer exists
   const alerts = documents
     .filter(d => d.expiryDate && !d.deleted && people.some(p => p.id === d.personId))
@@ -123,6 +132,14 @@ export default function Dashboard({ trips, documents, people, packing = [] }) {
                 </div>
               })}
             </div>
+            {cur && wx?.daily && (
+              <div className="wx-extra">
+                {destTime && <div className="wxx"><span>🕐</span>{destTime} local</div>}
+                {wx.daily.sunrise?.[0] && <div className="wxx"><span>🌅</span>{wx.daily.sunrise[0].slice(11, 16)}</div>}
+                {wx.daily.sunset?.[0] && <div className="wxx"><span>🌇</span>{wx.daily.sunset[0].slice(11, 16)}</div>}
+                {uv != null && <div className="wxx"><span>☀️</span>UV {Math.round(uv)} · {uvLabel}</div>}
+              </div>
+            )}
           </div>
         </div>
 
