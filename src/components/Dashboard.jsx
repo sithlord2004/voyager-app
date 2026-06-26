@@ -6,7 +6,22 @@ import { Icon } from './Icon.jsx'
 
 const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT']
 
-export default function Dashboard({ trips, documents, people }) {
+// Small circular progress ring for the trip-readiness score.
+function Ring({ pct }) {
+  const r = 26, c = 2 * Math.PI * r
+  const stroke = pct >= 80 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444'
+  return (
+    <svg width="68" height="68" viewBox="0 0 68 68" style={{ flexShrink: 0 }}>
+      <circle cx="34" cy="34" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="7" />
+      <circle cx="34" cy="34" r={r} fill="none" stroke={stroke} strokeWidth="7" strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} transform="rotate(-90 34 34)"
+        style={{ transition: 'stroke-dashoffset .6s ease' }} />
+      <text x="34" y="39" textAnchor="middle" fontSize="16" fontWeight="700" fill="var(--text)">{pct}%</text>
+    </svg>
+  )
+}
+
+export default function Dashboard({ trips, documents, people, packing = [] }) {
   const [name, setName] = useState('')
   useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
   const hour = new Date().getHours()
@@ -17,6 +32,7 @@ export default function Dashboard({ trips, documents, people }) {
   const [wx, setWx] = useState(null)
   const [place, setPlace] = useState(null)
   const [loading, setLoading] = useState(true)
+  // All flight legs of the next trip (supports multi-leg trips + legacy single flight)
   const flightLegs = (next?.legs?.length
     ? next.legs
     : (next?.flight ? [{ mode: 'flight', number: next.flight.number, from: next.flight.depAirport, to: next.flight.arrAirport, date: next.startDate }] : [])
@@ -43,12 +59,29 @@ export default function Dashboard({ trips, documents, people }) {
   const code = cur ? (WMO[cur.weather_code] || ['🌡️','—']) : ['…','']
   const flag = place ? (FLAGS[place.country_code] || '') : ''
 
+  // expiry alerts — ignore deleted docs and docs whose owner no longer exists
   const alerts = documents
     .filter(d => d.expiryDate && !d.deleted && people.some(p => p.id === d.personId))
     .map(d => ({ d, days: Math.round((new Date(d.expiryDate) - new Date()) / 86400000) }))
     .filter(x => x.days < 180)
     .sort((a, b) => a.days - b.days)
   const ownerName = id => people.find(p => p.id === id)?.name || ''
+
+  // Trip readiness — rolls up the essentials for the next trip into one score.
+  const travellers = next ? (next.travellerIds?.length ? people.filter(p => next.travellerIds.includes(p.id)) : people) : []
+  const passportOk = pid => documents.some(d => !d.deleted && d.personId === pid && d.type === 'Passport' && (!d.expiryDate || new Date(d.expiryDate) >= new Date(next.endDate)))
+  const passportsReady = travellers.length > 0 && travellers.every(p => passportOk(p.id))
+  const insuranceReady = documents.some(d => !d.deleted && d.type === 'Travel insurance' && (!d.expiryDate || new Date(d.expiryDate) >= new Date(next?.startDate || 0)))
+  const tripPacking = packing.filter(k => k.tripId === next?.id)
+  const packPct = tripPacking.length ? Math.round(tripPacking.filter(k => k.checked).length / tripPacking.length * 100) : 0
+  const flightsReady = flightLegs.length > 0
+  const readyItems = [
+    { label: 'Passports valid', ok: passportsReady },
+    { label: 'Travel insurance', ok: insuranceReady },
+    { label: 'Flights booked', ok: flightsReady },
+    { label: `Packing ${packPct}%`, ok: packPct === 100 }
+  ]
+  const readyScore = next ? Math.round(((passportsReady ? 1 : 0) + (insuranceReady ? 1 : 0) + (flightsReady ? 1 : 0) + packPct / 100) / 4 * 100) : 0
 
   return (
     <div>
@@ -94,6 +127,22 @@ export default function Dashboard({ trips, documents, people }) {
         </div>
 
         <div className="grid">
+          <div className="card ready">
+            <h3><Icon name="shield" /> Trip readiness</h3>
+            {next ? (
+              <div className="ready-body">
+                <Ring pct={readyScore} />
+                <div className="ready-list">
+                  {readyItems.map(it => (
+                    <div className={'ready-item' + (it.ok ? ' done' : '')} key={it.label}>
+                      <span className="rk">{it.ok ? '✓' : '○'}</span>{it.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : <div className="desc">Add a trip to see how ready you are.</div>}
+          </div>
+
           <div className="card">
             <h3><Icon name="plane" /> Flights</h3>
             {flightLegs.length ? flightLegs.map((l, i) => {
