@@ -79,11 +79,19 @@ export default function Vault({ vaultKey, documents, people, reload }) {
 
   useEffect(() => { getSyncConfig().then(c => setSyncOn(c.enabled)) }, [])
 
-  async function onView(doc) {
+async function onView(doc) {
     setMsg('Decrypting…')
-    const bytes = await decryptBytes(vaultKey, doc.blob)
-    const url = URL.createObjectURL(new Blob([bytes], { type: doc.mime || 'application/octet-stream' }))
+    let bytes
+    try {
+      bytes = await decryptBytes(vaultKey, doc.blob)
+    } catch {
+      // Wrong key (e.g. unlocked with a passkey bound to an old vault) or corrupt data.
+      setMsg("⚠️ Couldn't decrypt this file. If you just restored a backup, lock the app and unlock with your passphrase (not Face ID), then try again.")
+      setTimeout(() => setMsg(''), 7000)
+      return
+    }
     setMsg('')
+    const url = URL.createObjectURL(new Blob([bytes], { type: doc.mime || 'application/octet-stream' }))
     const mime = doc.mime || ''
     if (mime.startsWith('image/') || mime === 'application/pdf') {
       setViewer({ url, mime, name: doc.fileName || doc.title })
