@@ -59,5 +59,9 @@ export async function importBackup(fileText, passphrase) {
     await db.packing.bulkPut(bundle.packing || [])
   })
   await setSetting('vault', file.vault)
+  // Drop any passkey from this device — it's bound to the OLD vault key and would
+  // otherwise unlock with the wrong key (documents would fail to decrypt). The user
+  // re-enables Face ID after unlocking once with the restored passphrase.
+  await setSetting('passkey', null)
   return key
 }
