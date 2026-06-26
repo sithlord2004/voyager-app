@@ -40,7 +40,7 @@ export default function App() {
     <div className="app">
       <Sidebar view={view} setView={setView} onLock={() => { setVaultKey(null); setData(null) }} />
       <main className="main">
-        {view === 'dashboard' && <Dashboard trips={data.trips} documents={data.documents} people={data.people} />}
+        {view === 'dashboard' && <Dashboard trips={data.trips} documents={data.documents} people={data.people} packing={data.packing} />}
         {view === 'trips' && <Trips trips={data.trips} documents={data.documents} reload={reload} />}
         {view === 'vault' && <Vault vaultKey={vaultKey} documents={data.documents} people={data.people} reload={reload} />}
         {view === 'packing' && <Packing trips={data.trips} packing={data.packing} reload={reload} />}
