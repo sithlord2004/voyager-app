@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getSetting, setSetting } from '../lib/db.js'
 import { geocode } from '../lib/weather.js'
 import { Icon } from './Icon.jsx'
+import MedicalCard from './MedicalCard.jsx'
 
 // Local emergency numbers by country code. Many countries (esp. EU) use 112.
 const EU = name => ({ name, rows: [['🆘 Emergencies (EU 112)', '112']] })
@@ -78,6 +79,7 @@ export default function Emergency({ trips = [] }) {
   const [home, setHome] = useState('GB')
   const [contacts, setContacts] = useState([])
   const [medical, setMedical] = useState([])
+  const [showMed, setShowMed] = useState(false)
 
   useEffect(() => {
     getSetting('emergencyContacts').then(c => setContacts(c || []))
@@ -110,7 +112,8 @@ export default function Emergency({ trips = [] }) {
   return (
     <div>
       <div className="topbar"><div><h2><Icon name="lifebuoy" size={23} /> Emergency Card</h2>
-        <div className="sub">Local numbers, nearby hospitals &amp; your embassy — for wherever you are</div></div></div>
+        <div className="sub">Local numbers, nearby hospitals &amp; your embassy — for wherever you are</div></div>
+        <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => setShowMed(true)}>✚ Medical ID</button></div>
 
       <div className="file-row" style={{ maxWidth: 620, marginBottom: 16 }}>
         <input value={dest} onChange={e => setDest(e.target.value)} placeholder="Destination city (e.g. Tokyo)"
@@ -168,6 +171,8 @@ export default function Emergency({ trips = [] }) {
         <EditList headIcon="pulse" title="Medical notes" icon="🩺" items={medical} onChange={saveMedical}
           placeholder1="Who (e.g. Aria)" placeholder2="Detail (e.g. Allergy: peanuts)" />
       </div>
+
+      {showMed && <MedicalCard contacts={contacts} medical={medical} onClose={() => setShowMed(false)} />}
     </div>
   )
 }
