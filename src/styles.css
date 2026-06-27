@@ -189,6 +189,9 @@ input{font-family:inherit}
 .trip-row .cnt div b{font-size:15px}
 .countdown{font-size:12px;font-weight:700;color:var(--brand-2);background:rgba(6,182,212,.12);padding:5px 11px;border-radius:30px;border:1px solid rgba(6,182,212,.25)}
 
+/* Footer / version */
+.app-footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--border-soft);color:var(--text-3);font-size:11.5px;text-align:center;letter-spacing:.2px}
+
 /* Toast */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface-2);border:1px solid var(--border);padding:12px 18px;border-radius:12px;font-size:13px;box-shadow:var(--shadow);opacity:0;transition:.25s;z-index:99}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
