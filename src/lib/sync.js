@@ -55,7 +55,13 @@ export async function syncNow() {
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.token },
       body: JSON.stringify({ familyId: cfg.familyId, since, documents: [], trips: [], people: [], ...body })
     })
-    if (!res.ok) throw new Error('Sync failed: ' + res.status)
+    if (!res.ok) {
+      // Surface the server's reason (e.g. a database error) instead of a bare status.
+      let detail = ''
+      try { detail = (await res.clone().json())?.error || '' } catch {}
+      if (!detail) { try { detail = (await res.text()).slice(0, 140) } catch {} }
+      throw new Error('Sync failed: ' + res.status + (detail ? ' — ' + detail : ''))
+    }
     return res.json()
   }
 
