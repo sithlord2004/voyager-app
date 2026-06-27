@@ -63,5 +63,16 @@ export async function importBackup(fileText, passphrase) {
   // otherwise unlock with the wrong key (documents would fail to decrypt). The user
   // re-enables Face ID after unlocking once with the restored passphrase.
   await setSetting('passkey', null)
+
+  // Advance the sync "last synced" bookmark to the newest restored record. The
+  // restore already put every document on the device, so the next sync should only
+  // fetch changes made AFTER this backup — not re-download the whole library (which
+  // can be too large to pull in one response).
+  const restored = [...(bundle.people || []), ...(bundle.trips || []), ...(bundle.documents || [])]
+  const maxUpdated = restored.reduce((m, r) => Math.max(m, r.updatedAt || 0), 0)
+  if (maxUpdated) {
+    const sync = (await getSetting('sync')) || { enabled: false, endpoint: '', token: '', familyId: '', lastSync: 0 }
+    await setSetting('sync', { ...sync, lastSync: Math.max(sync.lastSync || 0, maxUpdated) })
+  }
   return key
 }
