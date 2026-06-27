@@ -144,9 +144,17 @@ async function onView(doc) {
         {people.map(p => <button key={p.id} className={filter === p.id ? 'active' : ''} onClick={() => setFilter(p.id)}>{p.name}</button>)}
       </div>
 
-      <div className="doc-grid">
-        {list.map(d => <DocCard key={d.id} doc={d} vaultKey={vaultKey} ownerName={ownerName} onView={onView} onDelete={onDelete} />)}
-      </div>
+      {list.length ? (
+        <div className="doc-grid">
+          {list.map(d => <DocCard key={d.id} doc={d} vaultKey={vaultKey} ownerName={ownerName} onView={onView} onDelete={onDelete} />)}
+        </div>
+      ) : (
+        <div className="empty">
+          <div className="ico"><Icon name="shield" size={22} /></div>
+          <b>No documents here yet</b>
+          <span>Tap “＋ Add document” to store your first one — encrypted on this device.</span>
+        </div>
+      )}
 
       {adding && <AddDocModal people={people} vaultKey={vaultKey}
         onClose={() => setAdding(false)}
