@@ -32,6 +32,28 @@ async function makeThumb(file) {
   return blob.arrayBuffer()
 }
 
+// Shrink large photos before storing: caps the longest side and re-encodes as
+// JPEG so documents stay small (fast & reliable to sync) while still clearly
+// readable. Also converts iPhone HEIC to universal JPEG. Non-images pass through.
+async function prepareFile(file) {
+  if (!file.type.startsWith('image/')) return { bytes: await file.arrayBuffer(), mime: file.type, name: file.name }
+  try {
+    const bmp = await createImageBitmap(file)
+    const scale = Math.min(1, 2200 / Math.max(bmp.width, bmp.height))
+    const c = document.createElement('canvas')
+    c.width = Math.round(bmp.width * scale)
+    c.height = Math.round(bmp.height * scale)
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.82))
+    // Use the shrunk version when it's actually smaller (or when converting HEIC/PNG).
+    if (blob && (blob.size < file.size || !/jpe?g$/i.test(file.type))) {
+      const name = /\.jpe?g$/i.test(file.name) ? file.name : file.name.replace(/\.[^.]+$/, '') + '.jpg'
+      return { bytes: await blob.arrayBuffer(), mime: 'image/jpeg', name }
+    }
+  } catch { /* fall back to the original below */ }
+  return { bytes: await file.arrayBuffer(), mime: file.type, name: file.name }
+}
+
 function DocCard({ doc, vaultKey, ownerName, onView, onDelete }) {
   const [thumb, setThumb] = useState(null)
   const [confirmDel, setConfirmDel] = useState(false)
@@ -79,7 +101,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
 
   useEffect(() => { getSyncConfig().then(c => setSyncOn(c.enabled)) }, [])
 
-async function onView(doc) {
+  async function onView(doc) {
     setMsg('Decrypting…')
     let bytes
     try {
@@ -207,16 +229,18 @@ function AddDocModal({ people, vaultKey, onClose, onSaved }) {
 
   async function save() {
     setBusy(true)
-    let blob = null, thumb = null, mime = null
+    let blob = null, thumb = null, mime = null, fileName = null
     if (file) {
-      blob = await encryptBytes(vaultKey, await file.arrayBuffer())
-      mime = file.type
+      const prepared = await prepareFile(file)   // shrink/convert large photos first
+      blob = await encryptBytes(vaultKey, prepared.bytes)
+      mime = prepared.mime
+      fileName = prepared.name
       const t = await makeThumb(file)
       if (t) thumb = await encryptBytes(vaultKey, t)
     }
     await saveDocument({
       personId, type, title: title || type, expiryDate: expiry || null, number: number || null,
-      tripId: null, blob, thumb, mime, fileName: file?.name || null
+      tripId: null, blob, thumb, mime, fileName
     })
     setBusy(false)
     onSaved()
