@@ -9,6 +9,7 @@ import Packing from './components/Packing.jsx'
 import Emergency from './components/Emergency.jsx'
 import Settings from './components/Settings.jsx'
 import Help from './components/Help.jsx'
+import { versionLabel } from './lib/version.js'
 
 export default function App() {
   const [vaultKey, setVaultKey] = useState(null)   // in-memory only; null = locked
@@ -47,6 +48,7 @@ export default function App() {
         {view === 'emergency' && <Emergency trips={data.trips} />}
         {view === 'settings' && <Settings vaultKey={vaultKey} people={data.people} reload={reload} />}
         {view === 'help' && <Help />}
+        <footer className="app-footer">Voyager · {versionLabel()}</footer>
       </main>
     </div>
   )
