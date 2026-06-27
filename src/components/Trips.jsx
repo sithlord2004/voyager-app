@@ -5,6 +5,7 @@ import { parseItinerarySmart, extractTextFromFile } from '../lib/itinerary.js'
 import { getSyncConfig } from '../lib/sync.js'
 import { Icon } from './Icon.jsx'
 import Postcard from './Postcard.jsx'
+import JourneyMap from './JourneyMap.jsx'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const MODES = [['flight', '✈️', 'Flight'], ['train', '🚆', 'Train'], ['car', '🚗', 'Car/Drive'], ['ferry', '⛴️', 'Ferry'], ['bus', '🚌', 'Bus']]
@@ -23,7 +24,7 @@ function tripLegs(trip) {
   return []
 }
 
-function TripRow({ trip, docCount, onDelete, onEdit, onPostcard }) {
+function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap }) {
   const [w, setW] = useState(null)
   const [confirmDel, setConfirmDel] = useState(false)
   useEffect(() => {
@@ -59,6 +60,7 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard }) {
       </div>
       <div className="countdown">{cd}</div>
       <div className="trip-actions">
+        <button className="icon-btn" title="Journey map" onClick={() => onMap(trip)}><Icon name="map" size={17} /></button>
         <button className="icon-btn" title="Trip postcard" onClick={() => onPostcard(trip)}><Icon name="share" size={17} /></button>
         <button className="icon-btn" title="Edit trip" onClick={() => onEdit(trip)}><Icon name="edit" size={17} /></button>
         <button className="icon-btn" title="Delete trip" onClick={() => confirmDel ? onDelete(trip) : setConfirmDel(true)}
@@ -75,6 +77,7 @@ export default function Trips({ trips, documents, reload }) {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
   const [postcard, setPostcard] = useState(null)
+  const [mapTrip, setMapTrip] = useState(null)
   async function onDelete(trip) {
     await deleteTrip(trip.id)
     reload?.()
@@ -89,7 +92,7 @@ export default function Trips({ trips, documents, reload }) {
         </div>
       </div>
       {trips.map(t => (
-        <TripRow key={t.id} trip={t} onDelete={onDelete} onEdit={setEditing} onPostcard={setPostcard} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
+        <TripRow key={t.id} trip={t} onDelete={onDelete} onEdit={setEditing} onPostcard={setPostcard} onMap={setMapTrip} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
       ))}
       <div className="desc" style={{ marginTop: 8 }}>
         🟢 <b>forecast</b> = live forecast (trip within ~14 days) &nbsp;·&nbsp; 📅 <b>seasonal</b> = historical average for those dates
@@ -99,6 +102,7 @@ export default function Trips({ trips, documents, reload }) {
         onClose={() => { setAdding(false); setEditing(null) }}
         onSaved={() => { setAdding(false); setEditing(null); reload?.() }} />}
       {postcard && <Postcard trip={postcard} onClose={() => setPostcard(null)} />}
+      {mapTrip && <JourneyMap trip={mapTrip} onClose={() => setMapTrip(null)} />}
     </div>
   )
 }
