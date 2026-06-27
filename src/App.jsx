@@ -35,7 +35,14 @@ export default function App() {
   }, [vaultKey, reload])
 
   if (!vaultKey) return <LockScreen onUnlock={setVaultKey} />
-  if (!data) return <div className="lock"><div className="lock-logo">🧭</div></div>
+  if (!data) return (
+    <div className="lock">
+      <div className="boot">
+        <div className="lock-logo boot-pulse">🧭</div>
+        <div className="boot-text">Loading your trips…</div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="app">
