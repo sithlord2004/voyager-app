@@ -42,7 +42,7 @@ export default async function handler(req, res) {
   if (auth !== 'Bearer ' + process.env.SYNC_TOKEN) return res.status(401).json({ error: 'Unauthorized' })
 
   const body = await readJson(req)
-  const { familyId, since = 0, documents = [], trips = [], people = [] } = body || {}
+  const { familyId, since = 0, documents = [], trips = [], people = [], paginate = false } = body || {}
   if (!familyId) return res.status(400).json({ error: 'familyId required' })
 
   // 1) Upsert incoming (already-encrypted) docs.
@@ -87,10 +87,29 @@ export default async function handler(req, res) {
     if (error) return res.status(500).json({ error: error.message })
   }
 
-  // 2) Return everything changed since the client's last sync.
-  const { data: docData, error: docErr } = await supabase
-    .from('documents').select('payload, updated_at').eq('family_id', familyId).gt('updated_at', since)
-  if (docErr) return res.status(500).json({ error: docErr.message })
+  // 2) Return changes since `since`. When the client opts into pagination, cap the
+  //    document response by accumulated size so a big backlog can't blow past the
+  //    serverless response-size limit (it just comes down over several pages).
+  let docRows = [], more = false
+  if (paginate) {
+    const FETCH = 15, MAX_BYTES = 3_000_000
+    const { data, error } = await supabase
+      .from('documents').select('payload, updated_at').eq('family_id', familyId)
+      .gt('updated_at', since).order('updated_at', { ascending: true }).limit(FETCH)
+    if (error) return res.status(500).json({ error: error.message })
+    let total = 0
+    for (const row of (data || [])) {
+      const sz = JSON.stringify(row.payload).length
+      if (docRows.length && total + sz > MAX_BYTES) { more = true; break }
+      docRows.push(row); total += sz
+    }
+    if (!more && (data || []).length === FETCH) more = true
+  } else {
+    const { data, error } = await supabase
+      .from('documents').select('payload, updated_at').eq('family_id', familyId).gt('updated_at', since)
+    if (error) return res.status(500).json({ error: error.message })
+    docRows = data || []
+  }
 
   const { data: tripData, error: tripErr } = await supabase
     .from('trips').select('payload, updated_at').eq('family_id', familyId).gt('updated_at', since)
@@ -100,10 +119,14 @@ export default async function handler(req, res) {
     .from('people').select('payload, updated_at').eq('family_id', familyId).gt('updated_at', since)
   if (peopleErr) return res.status(500).json({ error: peopleErr.message })
 
+  const documentsOut = docRows.map(r => ({ ...r.payload, updatedAt: Number(r.updated_at) }))
+  const cursor = documentsOut.length ? documentsOut[documentsOut.length - 1].updatedAt : since
+
   res.status(200).json({
-    documents: (docData || []).map(r => ({ ...r.payload, updatedAt: Number(r.updated_at) })),
+    documents: documentsOut,
     trips: (tripData || []).map(r => ({ ...r.payload, updatedAt: Number(r.updated_at) })),
     people: (peopleData || []).map(r => ({ ...r.payload, updatedAt: Number(r.updated_at) })),
+    more, cursor,
     serverTime: Date.now()
   })
 }
