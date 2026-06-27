@@ -212,6 +212,11 @@ input{font-family:inherit}
 
 @media(prefers-reduced-motion:reduce){.main>div,.grid.dash>*,.boot-pulse,.skeleton{animation:none}}
 
+/* Journey map */
+.journey-map{height:60vh;min-height:320px;width:100%;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--surface-2)}
+.jm-pin span{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;font-size:15px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.leaflet-popup-content{font-weight:600}
+
 /* Medical ID card */
 .med-card{background:#fff;color:#0f172a;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0}
 .med-head{background:#dc2626;color:#fff;padding:13px 18px;display:flex;justify-content:space-between;align-items:center;font-weight:800;letter-spacing:.6px;font-size:15px}
