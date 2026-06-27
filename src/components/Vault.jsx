@@ -4,6 +4,7 @@ import { db, daysUntil, saveDocument } from '../lib/db.js'
 import { getSyncConfig, syncNow } from '../lib/sync.js'
 import { scanPassport } from '../lib/ocr.js'
 import { Icon } from './Icon.jsx'
+import Collapsible from './Collapsible.jsx'
 
 const TYPES =['Passport', 'Visa', 'Driving licence', 'Travel insurance', 'Vaccination record', 'Booking', 'Flight ticket', 'Other']
 const ICONS = {
@@ -92,7 +93,6 @@ function DocCard({ doc, vaultKey, ownerName, onView, onDelete }) {
 }
 
 export default function Vault({ vaultKey, documents, people, reload }) {
-  const [filter, setFilter] = useState('all')
   const [msg, setMsg] = useState('')
   const [adding, setAdding] = useState(false)
   const [syncOn, setSyncOn] = useState(false)
@@ -143,7 +143,16 @@ export default function Vault({ vaultKey, documents, people, reload }) {
     flash('🗑 Deleted')
   }
 
-  const list = documents.filter(d => !d.deleted && (filter === 'all' || d.personId === filter))
+  // Group documents under each family member (collapsible) to avoid one long scroll.
+  const visible = documents.filter(d => !d.deleted)
+  const groups = people.map(p => ({ p, docs: visible.filter(d => d.personId === p.id) })).filter(g => g.docs.length)
+  const orphans = visible.filter(d => !people.some(p => p.id === d.personId))
+
+  const grid = docs => (
+    <div className="doc-grid">
+      {docs.map(d => <DocCard key={d.id} doc={d} vaultKey={vaultKey} ownerName={ownerName} onView={onView} onDelete={onDelete} />)}
+    </div>
+  )
 
   return (
     <div>
@@ -161,15 +170,17 @@ export default function Vault({ vaultKey, documents, people, reload }) {
           <small>Files are AES-256 encrypted with your passphrase-derived key before being stored{syncOn ? ' or synced' : ''}.</small></div>
       </div>
 
-      <div className="seg">
-        <button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Everyone</button>
-        {people.map(p => <button key={p.id} className={filter === p.id ? 'active' : ''} onClick={() => setFilter(p.id)}>{p.name}</button>)}
-      </div>
-
-      {list.length ? (
-        <div className="doc-grid">
-          {list.map(d => <DocCard key={d.id} doc={d} vaultKey={vaultKey} ownerName={ownerName} onView={onView} onDelete={onDelete} />)}
-        </div>
+      {visible.length ? (
+        <>
+          {groups.map((g, i) => (
+            <Collapsible key={g.p.id} icon="user" title={g.p.name} badge={g.docs.length} defaultOpen={i === 0}>
+              {grid(g.docs)}
+            </Collapsible>
+          ))}
+          {orphans.length > 0 && (
+            <Collapsible icon="users" title="Other" badge={orphans.length}>{grid(orphans)}</Collapsible>
+          )}
+        </>
       ) : (
         <div className="empty">
           <div className="ico"><Icon name="shield" size={22} /></div>
