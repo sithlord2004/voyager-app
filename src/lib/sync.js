@@ -7,10 +7,10 @@
 // Conflict strategy: last-write-wins by `updatedAt` — appropriate for a
 // personal/family app (no real-time CRDT machinery).
 //
-// Uploads go up in small, size-capped batches so a big set of documents can't
-// blow past the serverless request-size limit in one giant request. Each batch
-// is marked clean as soon as it lands, so a sync that's interrupted just resumes
-// where it left off next time.
+// Uploads go up in small, size-capped batches and downloads come back in
+// size-capped pages, so a big set of documents can't blow past the serverless
+// request/response limits in one shot. Progress is saved as it goes, so an
+// interrupted sync just resumes next time.
 // ---------------------------------------------------------------------------
 import { db, getSetting, setSetting, markSynced } from './db.js'
 
@@ -38,7 +38,7 @@ async function mergeInto(table, remote) {
   return pulled
 }
 
-// Push local dirty records + pull remote changes, in safe-sized batches.
+// Push local dirty records + pull remote changes, in safe-sized batches/pages.
 export async function syncNow() {
   const cfg = await getSyncConfig()
   if (!cfg.enabled) throw new Error('Sync is off')
@@ -59,12 +59,18 @@ export async function syncNow() {
     return res.json()
   }
 
-  // 1) Download remote changes first (small on the device that just added files).
-  const r = await call({})
-  pulled += await mergeInto('documents', r.documents || [])
-  pulled += await mergeInto('trips', r.trips || [])
-  pulled += await mergeInto('people', r.people || [])
-  serverTime = r.serverTime || serverTime
+  // 1) Download remote changes first, paginated so a large backlog of documents
+  //    can't exceed the serverless response-size limit in a single response.
+  let cursor = since
+  for (let guard = 0; guard < 2000; guard++) {
+    const r = await call({ since: cursor, paginate: true })
+    pulled += await mergeInto('documents', r.documents || [])
+    pulled += await mergeInto('trips', r.trips || [])
+    pulled += await mergeInto('people', r.people || [])
+    serverTime = r.serverTime || serverTime
+    if (r.more && typeof r.cursor === 'number' && r.cursor > cursor) { cursor = r.cursor; continue }
+    break
+  }
 
   // 2) Upload local dirty records, table by table, in size-capped batches.
   async function pushTable(table) {
