@@ -3,6 +3,7 @@ import { getSetting, setSetting } from '../lib/db.js'
 import { geocode } from '../lib/weather.js'
 import { Icon } from './Icon.jsx'
 import MedicalCard from './MedicalCard.jsx'
+import Collapsible from './Collapsible.jsx'
 
 // Local emergency numbers by country code. Many countries (esp. EU) use 112.
 const EU = name => ({ name, rows: [['🆘 Emergencies (EU 112)', '112']] })
@@ -121,7 +122,7 @@ export default function Emergency({ trips = [] }) {
         <button className="btn" onClick={() => lookup(dest)}>🔎 Look up</button>
       </div>
 
-      <div className="card emg" style={{ marginBottom: 18 }}>
+      <div className="card emg" style={{ marginBottom: 14 }}>
         <h3 style={{ color: '#fff' }}>
           <Icon name="pin" /> Emergency numbers{countryName ? ` — ${countryName}` : ''}
         </h3>
@@ -132,8 +133,7 @@ export default function Emergency({ trips = [] }) {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 18 }}>
-        <h3><Icon name="hospital" /> Hospitals {dest ? `· ${dest}` : ''}</h3>
+      <Collapsible icon="hospital" title={`Hospitals${dest ? ' · ' + dest : ''}`} badge={hospitals?.length || null} defaultOpen>
         {hLoading && <div className="desc">Finding hospitals nearby…</div>}
         {!hLoading && hospitals && hospitals.map((h, i) => (
           <div className="alert" key={i}>
@@ -146,10 +146,9 @@ export default function Emergency({ trips = [] }) {
           ? <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('hospitals near ' + dest)}`} target="_blank" rel="noopener noreferrer">🗺️ Open hospitals near {dest} in Maps</a>
           : <div className="desc">Enter a destination above to find nearby hospitals.</div>}
         <div className="desc" style={{ marginTop: 8 }}>In a real emergency, call the number above first.</div>
-      </div>
+      </Collapsible>
 
-      <div className="card" style={{ marginBottom: 18 }}>
-        <h3><Icon name="building" /> Your embassy</h3>
+      <Collapsible icon="building" title="Your embassy">
         <label className="switch-row" style={{ maxWidth: 360 }}>
           <span>Your home country</span>
           <select value={home} onChange={e => changeHome(e.target.value)}
@@ -163,21 +162,24 @@ export default function Emergency({ trips = [] }) {
             href={`https://www.google.com/search?q=${encodeURIComponent((emb?.name || '') + ' embassy in ' + (countryName || dest || ''))}`}>🔎 Find embassy →</a>
           {emb && <a className="btn ghost" href={emb.url} target="_blank" rel="noopener noreferrer">Official locator</a>}
         </div>
-      </div>
+      </Collapsible>
 
-      <div className="two-col">
-        <EditList headIcon="phone" title="Emergency contacts" icon="📞" items={contacts} onChange={saveContacts}
+      <Collapsible icon="phone" title="Emergency contacts" badge={contacts.length || null}>
+        <EditList items={contacts} onChange={saveContacts} icon="📞"
           placeholder1="Name (e.g. Mum)" placeholder2="Phone / detail" />
-        <EditList headIcon="pulse" title="Medical notes" icon="🩺" items={medical} onChange={saveMedical}
+      </Collapsible>
+
+      <Collapsible icon="pulse" title="Medical notes" badge={medical.length || null}>
+        <EditList items={medical} onChange={saveMedical} icon="🩺"
           placeholder1="Who (e.g. Aria)" placeholder2="Detail (e.g. Allergy: peanuts)" />
-      </div>
+      </Collapsible>
 
       {showMed && <MedicalCard contacts={contacts} medical={medical} onClose={() => setShowMed(false)} />}
     </div>
   )
 }
 
-function EditList({ headIcon, title, icon, items, onChange, placeholder1, placeholder2 }) {
+function EditList({ icon, items, onChange, placeholder1, placeholder2 }) {
   const [a, setA] = useState('')
   const [b, setB] = useState('')
   function add() {
@@ -188,8 +190,7 @@ function EditList({ headIcon, title, icon, items, onChange, placeholder1, placeh
   function remove(idx) { onChange(items.filter((_, i) => i !== idx)) }
 
   return (
-    <div className="card">
-      <h3>{headIcon && <Icon name={headIcon} />} {title}</h3>
+    <>
       {items.length ? items.map((it, idx) => (
         <div className="alert" key={idx}>
           <div className="ai" style={{ background: 'rgba(59,130,246,.15)' }}>{icon}</div>
@@ -203,6 +204,6 @@ function EditList({ headIcon, title, icon, items, onChange, placeholder1, placeh
           onKeyDown={e => e.key === 'Enter' && add()} style={{ flex: 1, minWidth: 110 }} />
         <button className="btn" onClick={add}>＋</button>
       </div>
-    </div>
+    </>
   )
 }
