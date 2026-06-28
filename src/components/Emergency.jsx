@@ -133,7 +133,7 @@ export default function Emergency({ trips = [] }) {
         </div>
       </div>
 
-      <Collapsible icon="hospital" title={`Hospitals${dest ? ' · ' + dest : ''}`} badge={hospitals?.length || null} defaultOpen>
+      <Collapsible id="emg-hospitals" icon="hospital" title={`Hospitals${dest ? ' · ' + dest : ''}`} badge={hospitals?.length || null} defaultOpen>
         {hLoading && <div className="desc">Finding hospitals nearby…</div>}
         {!hLoading && hospitals && hospitals.map((h, i) => (
           <div className="alert" key={i}>
@@ -148,7 +148,7 @@ export default function Emergency({ trips = [] }) {
         <div className="desc" style={{ marginTop: 8 }}>In a real emergency, call the number above first.</div>
       </Collapsible>
 
-      <Collapsible icon="building" title="Your embassy">
+      <Collapsible id="emg-embassy" icon="building" title="Your embassy">
         <label className="switch-row" style={{ maxWidth: 360 }}>
           <span>Your home country</span>
           <select value={home} onChange={e => changeHome(e.target.value)}
@@ -164,12 +164,12 @@ export default function Emergency({ trips = [] }) {
         </div>
       </Collapsible>
 
-      <Collapsible icon="phone" title="Emergency contacts" badge={contacts.length || null}>
+      <Collapsible id="emg-contacts" icon="phone" title="Emergency contacts" badge={contacts.length || null}>
         <EditList items={contacts} onChange={saveContacts} icon="📞"
           placeholder1="Name (e.g. Mum)" placeholder2="Phone / detail" />
       </Collapsible>
 
-      <Collapsible icon="pulse" title="Medical notes" badge={medical.length || null}>
+      <Collapsible id="emg-medical" icon="pulse" title="Medical notes" badge={medical.length || null}>
         <EditList items={medical} onChange={saveMedical} icon="🩺"
           placeholder1="Who (e.g. Aria)" placeholder2="Detail (e.g. Allergy: peanuts)" />
       </Collapsible>
