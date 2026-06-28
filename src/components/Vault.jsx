@@ -172,8 +172,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
 
       {visible.length ? (
         <>
-          {groups.map((g, i) => (
-            {groups.map(g => (
+          {groups.map(g => (
             <Collapsible key={g.p.id} id={'vault-' + g.p.id} icon="user" title={g.p.name} badge={g.docs.length}>
               {grid(g.docs)}
             </Collapsible>
