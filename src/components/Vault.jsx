@@ -173,12 +173,13 @@ export default function Vault({ vaultKey, documents, people, reload }) {
       {visible.length ? (
         <>
           {groups.map((g, i) => (
-            <Collapsible key={g.p.id} icon="user" title={g.p.name} badge={g.docs.length} defaultOpen={i === 0}>
+            {groups.map(g => (
+            <Collapsible key={g.p.id} id={'vault-' + g.p.id} icon="user" title={g.p.name} badge={g.docs.length}>
               {grid(g.docs)}
             </Collapsible>
           ))}
           {orphans.length > 0 && (
-            <Collapsible icon="users" title="Other" badge={orphans.length}>{grid(orphans)}</Collapsible>
+            <Collapsible id="vault-other" icon="users" title="Other" badge={orphans.length}>{grid(orphans)}</Collapsible>
           )}
         </>
       ) : (
