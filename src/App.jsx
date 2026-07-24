@@ -42,6 +42,28 @@ export default function App() {
     (async () => { await seedIfEmpty(); await reload() })()
   }, [vaultKey, reload])
 
+  // Silent auto-refresh: every few minutes (and when the app is refocused),
+  // quietly pull cloud changes and re-read local data — no remount, so it never
+  // interrupts what you're doing.
+  useEffect(() => {
+    if (!vaultKey) return
+    let busy = false
+    const tick = async () => {
+      if (busy || document.hidden) return
+      busy = true
+      try {
+        const cfg = await getSyncConfig()
+        if (cfg.enabled) { try { await syncNow() } catch { /* offline is fine */ } }
+        await reload()
+      } catch { /* ignore */ }
+      busy = false
+    }
+    const id = setInterval(tick, 5 * 60 * 1000)
+    const onVis = () => { if (!document.hidden) tick() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
+  }, [vaultKey, reload])
+
   if (!vaultKey) return <LockScreen onUnlock={setVaultKey} />
   if (!data) return (
     <div className="lock">
@@ -68,13 +90,14 @@ export default function App() {
     setPull(0)
     if (!go) return
     setRefreshing(true)
-    try {
-      await reload()
-      const cfg = await getSyncConfig()
-      if (cfg.enabled) { try { await syncNow() } catch { /* offline is fine */ } }
-      setRefreshKey(k => k + 1)
-    } catch { /* ignore */ }
-    setTimeout(() => setRefreshing(false), 500)
+    // Fast part: re-read local data + re-fetch live info (weather/flights) right away.
+    try { await reload(); setRefreshKey(k => k + 1) } catch { /* ignore */ }
+    setTimeout(() => setRefreshing(false), 350)
+    // Cloud sync runs in the background so the refresh feels instant; when it
+    // finishes, re-read so any pulled changes appear.
+    ;(async () => {
+      try { const cfg = await getSyncConfig(); if (cfg.enabled) { await syncNow(); await reload() } } catch { /* offline is fine */ }
+    })()
   }
 
   return (
