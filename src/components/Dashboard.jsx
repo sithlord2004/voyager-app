@@ -164,21 +164,30 @@ export default function Dashboard({ trips, documents, people, packing = [] }) {
           {flightLegs.length ? flightLegs.map((l, i) => {
             const s = statuses[l.number + '_' + (l.date || next.startDate)]
             const [cls, label] = s ? statusChip(s.status) : ['st-ontime', 'scheduled']
+            const dep = s?.departure, arr = s?.arrival
+            const depTime = dep?.revised?.slice(11, 16) || dep?.scheduled?.slice(11, 16) || ''
+            const arrTime = arr?.revised?.slice(11, 16) || arr?.scheduled?.slice(11, 16) || ''
+            const depGate = [dep?.terminal && `Terminal ${dep.terminal}`, dep?.gate && `Gate ${dep.gate}`].filter(Boolean).join(' · ')
+            const arrGate = [arr?.terminal && `Terminal ${arr.terminal}`, arr?.gate && `Gate ${arr.gate}`].filter(Boolean).join(' · ')
             return (
-              <div className="flight" key={i} style={{ marginBottom: 10 }}>
-                <div className="air">🛫</div>
-                <div className="route">
+              <div className="flight" key={i}>
+                <div className="fl-top">
+                  <span className="fl-no">🛫 {l.number}</span>
+                  <span className={'status-chip ' + cls}>{s ? `🟢 ${label}` : label}</span>
+                </div>
+                <div className="fl-route">
                   <div className="ap">
-                    <b>{s?.departure?.airport || l.from || '—'}</b>
-                    <div className="time">{s?.departure?.revised?.slice(11, 16) || s?.departure?.scheduled?.slice(11, 16) || ''}</div>
+                    <b>{dep?.airport || l.from || '—'}</b>
+                    <div className="time">{depTime}</div>
+                    {depGate && <div className="fl-gate">{depGate}</div>}
                   </div>
-                  <div className="planeline"><span className="dur">{l.number}{s?.departure?.gate ? ` · Gate ${s.departure.gate}` : ''}</span></div>
+                  <div className="fl-line"><span>✈</span></div>
                   <div className="ap">
-                    <b>{s?.arrival?.airport || l.to || '—'}</b>
-                    <div className="time">{s?.arrival?.scheduled?.slice(11, 16) || ''}</div>
+                    <b>{arr?.airport || l.to || '—'}</b>
+                    <div className="time">{arrTime}</div>
+                    {arrGate && <div className="fl-gate">{arrGate}</div>}
                   </div>
                 </div>
-                <span className={'status-chip ' + cls} style={{ marginLeft: 8 }}>{s ? `🟢 ${label}` : label}</span>
               </div>
             )
           }) : <div className="desc">No flights on this trip</div>}
