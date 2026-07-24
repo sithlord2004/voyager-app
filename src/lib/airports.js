@@ -38,3 +38,32 @@ export const AIRPORTS = {
   SYD: [-33.95, 151.18], MEL: [-37.67, 144.84], BNE: [-27.38, 153.12], PER: [-31.94, 115.97],
   AKL: [-37.01, 174.79], CHC: [-43.49, 172.53], HNL: [21.32, -157.92], NAN: [-17.76, 177.44]
 }
+
+// Common city / airport names -> IATA, so a leg typed as "Melbourne" shows the
+// same "MEL" style as live flight data (which always returns codes).
+const CITY_IATA = {
+  melbourne: 'MEL', sydney: 'SYD', brisbane: 'BNE', perth: 'PER', adelaide: 'ADL', hobart: 'HBA',
+  canberra: 'CBR', 'gold coast': 'OOL', cairns: 'CNS', darwin: 'DRW', launceston: 'LST',
+  auckland: 'AKL', wellington: 'WLG', christchurch: 'CHC', queenstown: 'ZQN',
+  london: 'LHR', manchester: 'MAN', edinburgh: 'EDI', glasgow: 'GLA', dublin: 'DUB',
+  paris: 'CDG', amsterdam: 'AMS', frankfurt: 'FRA', munich: 'MUC', berlin: 'BER', madrid: 'MAD',
+  barcelona: 'BCN', lisbon: 'LIS', rome: 'FCO', milan: 'MXP', zurich: 'ZRH', vienna: 'VIE',
+  copenhagen: 'CPH', stockholm: 'ARN', oslo: 'OSL', helsinki: 'HEL', istanbul: 'IST', athens: 'ATH',
+  'new york': 'JFK', 'los angeles': 'LAX', 'san francisco': 'SFO', chicago: 'ORD', miami: 'MIA',
+  boston: 'BOS', seattle: 'SEA', toronto: 'YYZ', vancouver: 'YVR', 'mexico city': 'MEX',
+  tokyo: 'HND', osaka: 'KIX', kyoto: 'KIX', seoul: 'ICN', beijing: 'PEK', shanghai: 'PVG',
+  'hong kong': 'HKG', taipei: 'TPE', singapore: 'SIN', bangkok: 'BKK', 'kuala lumpur': 'KUL',
+  jakarta: 'CGK', bali: 'DPS', manila: 'MNL', delhi: 'DEL', mumbai: 'BOM', dubai: 'DXB',
+  doha: 'DOH', 'abu dhabi': 'AUH', 'tel aviv': 'TLV', cairo: 'CAI', johannesburg: 'JNB',
+  'cape town': 'CPT', nairobi: 'NBO', casablanca: 'CMN', marrakesh: 'RAK', marrakech: 'RAK'
+}
+
+// Normalise a leg endpoint to a short code: an existing IATA stays, a known city
+// name becomes its code, anything else is just upper-cased.
+export function toCode(s) {
+  const t = (s || '').trim()
+  if (!t) return ''
+  const up = t.toUpperCase()
+  if (up.length === 3 && AIRPORTS[up]) return up
+  return CITY_IATA[t.toLowerCase()] || up
+}

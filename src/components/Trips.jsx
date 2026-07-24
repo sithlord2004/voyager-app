@@ -257,11 +257,22 @@ function ImportModal({ onClose, onSaved }) {
   }
   async function parsePasted() { setBusy(true); await runParse(text); setBusy(false) }
   function field(k, v) { setDraft({ ...draft, [k]: v }) }
+  function stayField(k, v) { setDraft({ ...draft, stay: { ...draft.stay, [k]: v } }) }
 
   async function save() {
+    const stay = draft.stay
+    const start = draft.startDate || stay?.checkIn || ''
     await createTrip({
-      destinationCity: draft.destinationCity, startDate: draft.startDate, endDate: draft.endDate,
-      legs: draft.flightNumber ? [{ from: draft.depAirport, to: draft.arrAirport, mode: 'flight', number: draft.flightNumber, date: draft.startDate }] : []
+      destinationCity: draft.destinationCity,
+      startDate: start,
+      endDate: draft.endDate || stay?.checkOut || start,
+      legs: draft.flightNumber ? [{ from: draft.depAirport, to: draft.arrAirport, mode: 'flight', number: draft.flightNumber, date: draft.startDate }] : [],
+      stays: stay ? [{
+        kind: stay.kind || 'hotel',
+        name: (stay.name || '').trim() || 'Stay',
+        checkIn: stay.checkIn || '', checkOut: stay.checkOut || '',
+        ref: [stay.ref, stay.address].filter(Boolean).join(' · ')
+      }] : []
     })
     onSaved()
   }
@@ -297,9 +308,21 @@ function ImportModal({ onClose, onSaved }) {
               <label style={{ flex: '1 1 140px', minWidth: 0 }}>Returning <input type="date" value={draft.endDate} onChange={e => field('endDate', e.target.value)} /></label>
             </div>
             <label>Flight number <input value={draft.flightNumber} onChange={e => field('flightNumber', e.target.value)} placeholder="e.g. JL044" /></label>
+            {draft.stay && (
+              <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 10, marginTop: 8, display: 'grid', gap: 8 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>{draft.stay.kind === 'airbnb' ? '🏠 Airbnb stay found' : '🏨 Hotel stay found'}</div>
+                <label style={{ margin: 0 }}>Property <input value={draft.stay.name || ''} onChange={e => stayField('name', e.target.value)} placeholder="Property name" /></label>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <label style={{ flex: '1 1 140px', minWidth: 0, margin: 0 }}>Check-in <input type="date" value={draft.stay.checkIn || ''} onChange={e => stayField('checkIn', e.target.value)} /></label>
+                  <label style={{ flex: '1 1 140px', minWidth: 0, margin: 0 }}>Check-out <input type="date" value={draft.stay.checkOut || ''} onChange={e => stayField('checkOut', e.target.value)} /></label>
+                </div>
+                <label style={{ margin: 0 }}>Confirmation # <input value={draft.stay.ref || ''} onChange={e => stayField('ref', e.target.value)} placeholder="e.g. HMABCDE123" /></label>
+                {draft.stay.address && <label style={{ margin: 0 }}>Address <input value={draft.stay.address} onChange={e => stayField('address', e.target.value)} /></label>}
+              </div>
+            )}
             <div className="modal-actions">
               <button className="btn ghost" onClick={() => setDraft(null)}>← Back</button>
-              <button className="btn" onClick={save} disabled={!draft.destinationCity || !draft.startDate}>＋ Create trip</button>
+              <button className="btn" onClick={save} disabled={!draft.destinationCity || !(draft.startDate || draft.stay?.checkIn)}>＋ Create trip</button>
             </div>
           </>
         )}

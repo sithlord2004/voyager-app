@@ -65,6 +65,45 @@ export function extractAirports(text) {
   return codes
 }
 
+// Find the first recognisable date within ~40 chars after a label.
+function nearDate(text, label) {
+  const m = text.match(new RegExp(label + '[\\s\\S]{0,40}', 'i'))
+  if (!m) return ''
+  return extractDates(m[0])[0] || ''
+}
+
+// Detect an Airbnb / hotel stay from a booking confirmation. Returns a stay
+// object (or null). Regex heuristics — the user confirms before saving.
+export function extractStay(text) {
+  const isAirbnb = /airbnb/i.test(text)
+  const hotelish = /\b(hotel|resort|booking\.com|check[\s-]?in|check[\s-]?out|guest\s?house|villa|apartment)\b/i.test(text)
+  if (!isAirbnb && !hotelish) return null
+
+  let ref = ''
+  const rm = text.match(/(?:confirmation|reservation|booking)\s*(?:code|number|no\.?|reference|#)?\s*[:#]?\s*([A-Z0-9]{6,12})\b/i)
+  if (rm) ref = rm[1].toUpperCase()
+  if (!ref) { const hm = text.match(/\bHM[A-Z0-9]{6,10}\b/); if (hm) ref = hm[0] }
+
+  const checkIn = nearDate(text, 'check[\\s-]?in')
+  const checkOut = nearDate(text, '(?:check[\\s-]?out|checkout)')
+
+  let name = ''
+  const nm = text.match(/(?:reservation|stay|booking)\s+(?:at|for)\s+([A-Za-z0-9][A-Za-z0-9 ,'&.-]{3,50})/i)
+    || text.match(/(?:hosted by|your home|property)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9 ,'&.-]{3,50})/i)
+  if (nm) name = nm[1].trim().replace(/\s+/g, ' ')
+
+  let address = ''
+  const am = text.match(/address\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9 ,'#./-]{6,80})/i)
+  if (am) address = am[1].trim().replace(/\s+/g, ' ')
+
+  if (!ref && !checkIn && !name && !address) return null
+  return {
+    kind: isAirbnb ? 'airbnb' : 'hotel',
+    name: name || (isAirbnb ? 'Airbnb stay' : 'Hotel stay'),
+    checkIn, checkOut, ref, address
+  }
+}
+
 export function parseItinerary(text) {
   const dates = extractDates(text)
   const flights = extractFlights(text)
@@ -86,8 +125,9 @@ export function parseItinerary(text) {
     endDate: dates[dates.length - 1] || dates[0] || '',
     flightNumber: flights[0] || '',
     depAirport: airports[0] || '',
-    arrAirport: airports[1] || arr || '',
+    arrAirport: airports[1] || arrCode || '',
     airline: airlineMatch ? airlineMatch[0] : '',
+    stay: extractStay(text),
     confidence: {
       dates: dates.length, flights: flights.length, airports: airports.length
     }
@@ -116,6 +156,7 @@ export async function parseItinerarySmart(text, syncCfg) {
       depAirport: draft.depAirport || local.depAirport,
       arrAirport: draft.arrAirport || local.arrAirport,
       airline: draft.airline || local.airline,
+      stay: draft.stay || local.stay,
       confidence: local.confidence,
       source: 'llm'
     }

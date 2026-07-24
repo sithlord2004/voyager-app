@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { geocode, currentWeather, WMO, FLAGS } from '../lib/weather.js'
 import { getFlightStatus, statusChip } from '../lib/flights.js'
 import { getSetting } from '../lib/db.js'
+import { toCode } from '../lib/airports.js'
 import { Icon } from './Icon.jsx'
 
 const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT']
@@ -177,13 +178,13 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
                 </div>
                 <div className="fl-route">
                   <div className="ap">
-                    <b>{dep?.airport || l.from || '—'}</b>
+                    <b>{dep?.airport || toCode(l.from) || '—'}</b>
                     <div className="time">{depTime}</div>
                     {depGate && <div className="fl-gate">{depGate}</div>}
                   </div>
                   <div className="fl-line"><span>✈</span></div>
                   <div className="ap">
-                    <b>{arr?.airport || l.to || '—'}</b>
+                    <b>{arr?.airport || toCode(l.to) || '—'}</b>
                     <div className="time">{arrTime}</div>
                     {arrGate && <div className="fl-gate">{arrGate}</div>}
                   </div>
