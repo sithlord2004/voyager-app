@@ -18,6 +18,17 @@
   }
 }
 *{box-sizing:border-box;margin:0;padding:0}
+/* Portrait lock — phones in landscape get a rotate prompt instead of the app */
+#rotate-lock{display:none}
+@media (orientation:landscape) and (max-height:500px){
+  #rotate-lock{display:flex;position:fixed;inset:0;z-index:9999;background:var(--bg);color:var(--text);align-items:center;justify-content:center;text-align:center;padding:24px}
+  .rl-inner{display:grid;gap:8px;justify-items:center;max-width:320px}
+  .rl-emoji{font-size:46px;animation:rl-rock 1.6s ease-in-out infinite}
+  #rotate-lock b{font-size:17px}
+  #rotate-lock span{font-size:13px;color:var(--text-3)}
+  .app,.lock{display:none!important}
+}
+@keyframes rl-rock{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(78deg)}}
 html{scrollbar-gutter:stable;overflow-y:scroll}
 body{background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.45}
 body::before{content:"";position:fixed;inset:0;z-index:-1;

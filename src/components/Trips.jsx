@@ -176,9 +176,9 @@ function AddTripModal({ onClose, onSaved, trip }) {
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <h3>{trip ? 'Edit trip' : 'Add a trip'}</h3>
         <label>Main destination (for weather) <input value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. London" /></label>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <label style={{ flex: 1 }}>Leaving <input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
-          <label style={{ flex: 1 }}>Returning <input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <label style={{ flex: '1 1 140px', minWidth: 0 }}>Leaving <input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
+          <label style={{ flex: '1 1 140px', minWidth: 0 }}>Returning <input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
         </div>
 
         <div style={{ fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 8px', fontWeight: 600 }}>Journey legs</div>
@@ -292,9 +292,9 @@ function ImportModal({ onClose, onSaved }) {
           <>
             <p className="desc">{draft.source === 'llm' ? '✨ AI-assisted extraction. ' : `Found ${c?.dates ?? 0} date(s), ${c?.flights ?? 0} flight(s). `}Check and edit:</p>
             <label>Destination <input value={draft.destinationCity} onChange={e => field('destinationCity', e.target.value)} placeholder="City" /></label>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <label style={{ flex: 1 }}>Leaving <input type="date" value={draft.startDate} onChange={e => field('startDate', e.target.value)} /></label>
-              <label style={{ flex: 1 }}>Returning <input type="date" value={draft.endDate} onChange={e => field('endDate', e.target.value)} /></label>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <label style={{ flex: '1 1 140px', minWidth: 0 }}>Leaving <input type="date" value={draft.startDate} onChange={e => field('startDate', e.target.value)} /></label>
+              <label style={{ flex: '1 1 140px', minWidth: 0 }}>Returning <input type="date" value={draft.endDate} onChange={e => field('endDate', e.target.value)} /></label>
             </div>
             <label>Flight number <input value={draft.flightNumber} onChange={e => field('flightNumber', e.target.value)} placeholder="e.g. JL044" /></label>
             <div className="modal-actions">
