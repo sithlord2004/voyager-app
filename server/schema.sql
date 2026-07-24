@@ -23,6 +23,17 @@ create table if not exists families (
   alert_email text not null
 );
 
+-- Remembers the last-seen FCDO advisory per family+country so the daily cron
+-- can email only when the advice CHANGES (not on every run).
+create table if not exists advisory_state (
+  family_id    text   not null,
+  country_code text   not null,
+  fingerprint  text,
+  checked_at   bigint,
+  primary key (family_id, country_code)
+);
+alter table advisory_state enable row level security;
+
 -- Lock the tables down: only the server (service-role key) may touch them.
 alter table documents enable row level security;
 alter table families  enable row level security;

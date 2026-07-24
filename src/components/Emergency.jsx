@@ -4,6 +4,7 @@ import { geocode } from '../lib/weather.js'
 import { Icon } from './Icon.jsx'
 import MedicalCard from './MedicalCard.jsx'
 import Collapsible from './Collapsible.jsx'
+import { getAdvisory } from '../lib/advisory.js'
 
 // Local emergency numbers by country code. Many countries (esp. EU) use 112.
 const EU = name => ({ name, rows: [['🆘 Emergencies (EU 112)', '112']] })
@@ -81,6 +82,7 @@ export default function Emergency({ trips = [] }) {
   const [contacts, setContacts] = useState([])
   const [medical, setMedical] = useState([])
   const [showMed, setShowMed] = useState(false)
+  const [advisory, setAdvisory] = useState(null)
 
   useEffect(() => {
     getSetting('emergencyContacts').then(c => setContacts(c || []))
@@ -91,16 +93,17 @@ export default function Emergency({ trips = [] }) {
 
   async function lookup(city) {
     if (!city.trim()) return
-    setHLoading(true); setHospitals(null)
+    setHLoading(true); setHospitals(null); setAdvisory('loading')
     try {
       const p = await geocode(city.trim())
       if (p) {
         if (p.country_code) setCc(p.country_code)
         setCountryName(p.country || '')
+        getAdvisory(p.country_code, p.country).then(a => setAdvisory(a || 'unavailable'))
         const list = await fetchHospitals(p.latitude, p.longitude)
         setHospitals(list)
-      } else setHospitals([])
-    } catch { setHospitals([]) }
+      } else { setHospitals([]); setAdvisory('unavailable') }
+    } catch { setHospitals([]); setAdvisory('unavailable') }
     setHLoading(false)
   }
   async function changeHome(v) { setHome(v); await setSetting('homeCountry', v) }
@@ -132,6 +135,31 @@ export default function Emergency({ trips = [] }) {
           ))}
         </div>
       </div>
+
+      <Collapsible id="emg-safety" icon="shield" title={`Travel safety${countryName ? ' · ' + countryName : ''}`} defaultOpen>
+        {advisory === null && <div className="desc">Enter a destination above to see its official travel advice.</div>}
+        {advisory === 'loading' && <div className="desc">Checking the latest official travel advice…</div>}
+        {advisory === 'unavailable' && (
+          <div className="desc">Live advice needs Cloud sync configured (Settings). You can still check the{' '}
+            <a href="https://www.gov.uk/foreign-travel-advice" target="_blank" rel="noopener noreferrer">official FCDO travel advice →</a></div>
+        )}
+        {advisory && typeof advisory === 'object' && advisory.found && (
+          <>
+            <span className={'adv-chip adv-' + advisory.level}>{advisory.levelLabel}</span>
+            {advisory.summary && <p className="desc" style={{ marginTop: 2 }}>{advisory.summary}</p>}
+            {advisory.changeDescription && <p className="desc"><b>Latest update:</b> {advisory.changeDescription}</p>}
+            <div className="desc" style={{ marginTop: 6 }}>
+              {advisory.updated && <>Updated {new Date(advisory.updated).toLocaleDateString()} · </>}
+              <a href={advisory.link} target="_blank" rel="noopener noreferrer">Read full advice →</a>
+            </div>
+            <div className="desc" style={{ marginTop: 6, fontSize: 11 }}>Source: UK Foreign Office (FCDO).</div>
+          </>
+        )}
+        {advisory && typeof advisory === 'object' && advisory.found === false && (
+          <div className="desc">No specific FCDO page found for this destination.{' '}
+            <a href="https://www.gov.uk/foreign-travel-advice" target="_blank" rel="noopener noreferrer">Browse travel advice →</a></div>
+        )}
+      </Collapsible>
 
       <Collapsible id="emg-hospitals" icon="hospital" title={`Hospitals${dest ? ' · ' + dest : ''}`} badge={hospitals?.length || null} defaultOpen>
         {hLoading && <div className="desc">Finding hospitals nearby…</div>}
