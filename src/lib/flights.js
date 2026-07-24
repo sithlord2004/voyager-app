@@ -20,7 +20,7 @@ export async function getFlightStatus(number, date) {
 // Map a provider status to a colour + label for the widget chip.
 export function statusChip(status) {
   const s = (status || '').toLowerCase()
-  if (s.includes('cancel')) return ['st-delay', 'Cancelled']
+  if (s.includes('cancel')) return ['st-cancel', 'Cancelled']
   if (s.includes('delay') || s.includes('revised')) return ['st-delay', 'Delayed']
   if (s.includes('arriv')) return ['st-ontime', 'Arrived']
   if (s.includes('depart') || s.includes('air')) return ['st-ontime', 'En route']

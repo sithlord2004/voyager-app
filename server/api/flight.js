@@ -28,7 +28,9 @@ async function fetchStatus(number, date) {
       airport: f.arrival?.airport?.iata,
       scheduled: f.arrival?.scheduledTime?.local,
       revised: f.arrival?.revisedTime?.local,
-      terminal: f.arrival?.terminal
+      terminal: f.arrival?.terminal,
+      gate: f.arrival?.gate,
+      baggageBelt: f.arrival?.baggageBelt
     }
   }
 }

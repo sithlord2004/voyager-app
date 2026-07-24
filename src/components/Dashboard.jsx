@@ -168,12 +168,12 @@ export default function Dashboard({ trips, documents, people, packing = [] }) {
             const depTime = dep?.revised?.slice(11, 16) || dep?.scheduled?.slice(11, 16) || ''
             const arrTime = arr?.revised?.slice(11, 16) || arr?.scheduled?.slice(11, 16) || ''
             const depGate = [dep?.terminal && `Terminal ${dep.terminal}`, dep?.gate && `Gate ${dep.gate}`].filter(Boolean).join(' · ')
-            const arrGate = [arr?.terminal && `Terminal ${arr.terminal}`, arr?.gate && `Gate ${arr.gate}`].filter(Boolean).join(' · ')
+            const arrGate = [arr?.terminal && `Terminal ${arr.terminal}`, arr?.gate && `Gate ${arr.gate}`, arr?.baggageBelt && `Belt ${arr.baggageBelt}`].filter(Boolean).join(' · ')
             return (
               <div className="flight" key={i}>
                 <div className="fl-top">
-                  <span className="fl-no">🛫 {l.number}</span>
-                  <span className={'status-chip ' + cls}>{s ? `🟢 ${label}` : label}</span>
+                  <span className="fl-no">🛫 {l.number}{s?.airline ? ' · ' + s.airline : ''}</span>
+                  <span className={'status-chip ' + cls}>{label}</span>
                 </div>
                 <div className="fl-route">
                   <div className="ap">
