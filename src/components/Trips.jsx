@@ -11,6 +11,16 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 const MODES = [['flight', '✈️', 'Flight'], ['train', '🚆', 'Train'], ['car', '🚗', 'Car/Drive'], ['ferry', '⛴️', 'Ferry'], ['bus', '🚌', 'Bus']]
 const modeIcon = m => (MODES.find(x => x[0] === m) || ['', '✈️'])[1]
 
+// A live-status / live-departures link for legs that support it (flights & trains).
+function liveUrl(l) {
+  if (l.mode === 'flight' && l.number) return `https://www.google.com/search?q=${encodeURIComponent(l.number + ' flight status')}`
+  if (l.mode === 'train') {
+    const q = [l.number, l.from && 'from ' + l.from, l.to && 'to ' + l.to, 'live departures'].filter(Boolean).join(' ')
+    return `https://www.google.com/search?q=${encodeURIComponent(q || 'train live departures')}`
+  }
+  return null
+}
+
 function fmtRange(s, e) {
   const a = new Date(s + 'T00:00'), b = new Date(e + 'T00:00')
   return `${MONTHS[a.getMonth()]} ${a.getDate()} – ${MONTHS[b.getMonth()]} ${b.getDate()}, ${b.getFullYear()}`
@@ -40,7 +50,8 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap }) {
   const cd = du < 0 ? 'past' : du === 0 ? 'today' : `in ${du} days`
   const ic = w ? (WMO[w.code] || ['', ''])[0] : ''
   const legs = tripLegs(trip)
-  const legsLine = legs.map(l => `${l.from || '?'} ${modeIcon(l.mode)} ${l.to || '?'}${l.number ? ' ' + l.number : ''}`).join('   ·   ')
+  const legsLine = legs.map(l => `${l.from || '?'} ${modeIcon(l.mode)} ${l.to || '?'}${l.number ? ' ' + l.number : ''}${l.seat ? ' · ' + l.seat : ''}`).join('   ·   ')
+  const liveLegs = legs.filter(l => liveUrl(l))
   const stays = trip.stays || []
   const staysLine = stays.map(s => `${s.kind === 'airbnb' ? '🏠' : '🏨'} ${s.name}${s.checkIn ? ' · ' + s.checkIn : ''}`).join('   ·   ')
 
@@ -51,6 +62,15 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap }) {
         <b>{trip.destinationCity} {w?.flag || ''}</b>
         <small>{fmtRange(trip.startDate, trip.endDate)} · {trip.travellerIds.length} travellers</small>
         {legsLine && <small style={{ opacity: .9 }}>{legsLine}</small>}
+        {liveLegs.length > 0 && (
+          <div className="leg-live">
+            {liveLegs.map((l, i) => (
+              <a key={i} className="mini" href={liveUrl(l)} target="_blank" rel="noopener noreferrer">
+                {modeIcon(l.mode)} {l.number || (l.mode === 'flight' ? 'flight' : 'train')} · live
+              </a>
+            ))}
+          </div>
+        )}
         {staysLine && <small style={{ opacity: .9 }}>{staysLine}</small>}
       </div>
       <div className="cnt">
@@ -112,12 +132,12 @@ function AddTripModal({ onClose, onSaved, trip }) {
   const [city, setCity] = useState(trip?.destinationCity || '')
   const [start, setStart] = useState(trip?.startDate || '')
   const [end, setEnd] = useState(trip?.endDate || '')
-  const [legs, setLegs] = useState(seedLegs.length ? seedLegs.map(l => ({ date: l.date || '', from: l.from || '', to: l.to || '', mode: l.mode || 'flight', number: l.number || '' })) : [{ date: '', from: '', to: '', mode: 'flight', number: '' }])
+  const [legs, setLegs] = useState(seedLegs.length ? seedLegs.map(l => ({ date: l.date || '', from: l.from || '', to: l.to || '', mode: l.mode || 'flight', number: l.number || '', seat: l.seat || '' })) : [{ date: '', from: '', to: '', mode: 'flight', number: '', seat: '' }])
   const [stays, setStays] = useState(trip?.stays || [])
   const [busy, setBusy] = useState(false)
 
   const setLeg = (i, patch) => setLegs(legs.map((l, idx) => idx === i ? { ...l, ...patch } : l))
-  const addLeg = () => setLegs([...legs, { date: '', from: '', to: '', mode: 'flight', number: '' }])
+  const addLeg = () => setLegs([...legs, { date: '', from: '', to: '', mode: 'flight', number: '', seat: '' }])
   const removeLeg = i => setLegs(legs.filter((_, idx) => idx !== i))
 
   const setStay = (i, patch) => setStays(stays.map((s, idx) => idx === i ? { ...s, ...patch } : s))
@@ -130,8 +150,17 @@ function AddTripModal({ onClose, onSaved, trip }) {
     let countryCode = null
     try { const p = await geocode(city.trim()); if (p) countryCode = p.country_code } catch {}
     const cleanLegs = legs
-      .filter(l => l.from || l.to || l.number || l.date)
-      .map(l => ({ ...l, from: l.from.trim().toUpperCase(), to: l.to.trim().toUpperCase(), number: l.number.trim().toUpperCase() }))
+      .filter(l => l.from || l.to || l.number || l.date || l.seat)
+      .map(l => {
+        const up = l.mode === 'flight'   // only flights use uppercase codes; keep station/service names as typed
+        return {
+          date: l.date, mode: l.mode,
+          from: up ? l.from.trim().toUpperCase() : l.from.trim(),
+          to: up ? l.to.trim().toUpperCase() : l.to.trim(),
+          number: up ? l.number.trim().toUpperCase() : l.number.trim(),
+          seat: (l.seat || '').trim()
+        }
+      })
     const cleanStays = stays.filter(s => s.name.trim()).map(s => ({ ...s, name: s.name.trim(), ref: (s.ref || '').trim() }))
     const fields = { destinationCity: city.trim(), startDate: start, endDate: end || start, countryCode, legs: cleanLegs, stays: cleanStays }
     if (trip) await updateTrip(trip.id, fields)
@@ -164,11 +193,17 @@ function AddTripModal({ onClose, onSaved, trip }) {
                 style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 16 }}>✕</button>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input value={l.from} onChange={e => setLeg(i, { from: e.target.value })} placeholder="From (e.g. MEL)" style={{ ...fieldStyle, flex: 1 }} />
-              <input value={l.to} onChange={e => setLeg(i, { to: e.target.value })} placeholder="To (e.g. LON)" style={{ ...fieldStyle, flex: 1 }} />
+              <input value={l.from} onChange={e => setLeg(i, { from: e.target.value })}
+                placeholder={l.mode === 'flight' ? 'From (e.g. LHR)' : l.mode === 'train' ? 'From station' : 'From'} style={{ ...fieldStyle, flex: 1 }} />
+              <input value={l.to} onChange={e => setLeg(i, { to: e.target.value })}
+                placeholder={l.mode === 'flight' ? 'To (e.g. HND)' : l.mode === 'train' ? 'To station' : 'To'} style={{ ...fieldStyle, flex: 1 }} />
             </div>
-            <input value={l.number} onChange={e => setLeg(i, { number: e.target.value })}
-              placeholder={l.mode === 'flight' ? 'Flight number (optional)' : 'Reference / number (optional)'} style={fieldStyle} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input value={l.number} onChange={e => setLeg(i, { number: e.target.value })}
+                placeholder={l.mode === 'flight' ? 'Flight number (optional)' : l.mode === 'train' ? 'Service (e.g. Eurostar 9024)' : 'Reference / number (optional)'} style={{ ...fieldStyle, flex: 1 }} />
+              <input value={l.seat || ''} onChange={e => setLeg(i, { seat: e.target.value })}
+                placeholder={l.mode === 'flight' ? 'Seat (optional)' : l.mode === 'train' ? 'Coach / seat (optional)' : 'Seat / detail (optional)'} style={{ ...fieldStyle, flex: 1 }} />
+            </div>
           </div>
         ))}
         <button className="btn ghost" onClick={addLeg} style={{ width: '100%' }}>＋ Add another leg</button>
