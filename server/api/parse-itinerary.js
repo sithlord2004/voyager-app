@@ -7,8 +7,13 @@
 // fetch for OpenAI/others by changing the URL, headers, and body.
 
 const SCHEMA_HINT = `Return ONLY minified JSON with keys:
-{"destinationCity":string,"startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD","flightNumber":string,"depAirport":string,"arrAirport":string,"airline":string}
-Use "" for unknown fields. Dates must be ISO. Destination is the arrival city of the outbound flight.`
+{"destinationCity":string,"startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD","legs":[{"mode":"flight"|"train","number":string,"from":string,"to":string,"date":"YYYY-MM-DD"}],"stay":{"kind":"airbnb"|"hotel","name":string,"checkIn":"YYYY-MM-DD","checkOut":"YYYY-MM-DD","ref":string,"address":string},"airline":string}
+Rules:
+- Include EVERY flight/train segment as a leg, in travel order (outbound first, connections next, return last). Do not merge or drop any.
+- "from"/"to" are 3-letter IATA codes for flights, or station names for trains. "number" is the flight/service number (e.g. "BA245").
+- Each leg's "date" is that segment's departure date (ISO).
+- "stay" is the hotel/Airbnb if the text is (also) an accommodation booking, else null.
+- Use "" for unknown text fields, [] for no legs. Dates must be ISO. Destination is the arrival city of the outbound flight.`
 
 export default async function handler(req, res) {
   if ((req.headers.authorization || '') !== 'Bearer ' + process.env.SYNC_TOKEN)
