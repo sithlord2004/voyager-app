@@ -107,11 +107,11 @@ export default function App() {
         {(pull > 4 || refreshing) && (
           <div className="ptr-banner">{refreshing ? '↻ Refreshing…' : pull >= PTR_THRESH ? 'Release to refresh ↑' : 'Pull to refresh ↓'}</div>
         )}
-        {view === 'dashboard' && <Dashboard key={refreshKey} trips={data.trips} documents={data.documents} people={data.people} packing={data.packing} />}
-        {view === 'trips' && <Trips key={refreshKey} trips={data.trips} documents={data.documents} reload={reload} />}
-        {view === 'vault' && <Vault key={refreshKey} vaultKey={vaultKey} documents={data.documents} people={data.people} reload={reload} />}
-        {view === 'packing' && <Packing key={refreshKey} trips={data.trips} packing={data.packing} reload={reload} />}
-        {view === 'emergency' && <Emergency key={refreshKey} trips={data.trips} />}
+        {view === 'dashboard' && <Dashboard refreshKey={refreshKey} trips={data.trips} documents={data.documents} people={data.people} packing={data.packing} />}
+        {view === 'trips' && <Trips trips={data.trips} documents={data.documents} reload={reload} />}
+        {view === 'vault' && <Vault vaultKey={vaultKey} documents={data.documents} people={data.people} reload={reload} />}
+        {view === 'packing' && <Packing trips={data.trips} packing={data.packing} reload={reload} />}
+        {view === 'emergency' && <Emergency trips={data.trips} />}
         {view === 'settings' && <Settings vaultKey={vaultKey} people={data.people} reload={reload} />}
         {view === 'help' && <Help />}
         <footer className="app-footer">Voyager · {versionLabel()}</footer>

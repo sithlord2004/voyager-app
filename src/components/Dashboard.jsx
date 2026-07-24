@@ -21,7 +21,7 @@ function Ring({ pct }) {
   )
 }
 
-export default function Dashboard({ trips, documents, people, packing = [] }) {
+export default function Dashboard({ trips, documents, people, packing = [], refreshKey }) {
   const [name, setName] = useState('')
   useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
   const hour = new Date().getHours()
@@ -44,7 +44,7 @@ export default function Dashboard({ trips, documents, people, packing = [] }) {
       const key = l.number + '_' + (l.date || next.startDate)
       getFlightStatus(l.number, l.date || next?.startDate).then(s => { if (s) setStatuses(prev => ({ ...prev, [key]: s })) })
     })
-  }, []) // eslint-disable-line
+  }, [refreshKey]) // eslint-disable-line
 
   async function load(c) {
     setLoading(true)
@@ -53,7 +53,7 @@ export default function Dashboard({ trips, documents, people, packing = [] }) {
     const w = await currentWeather(p.latitude, p.longitude)
     setPlace(p); setWx(w); setLoading(false)
   }
-  useEffect(() => { load(city) }, []) // eslint-disable-line
+  useEffect(() => { load(city) }, [refreshKey]) // eslint-disable-line
 
   const cur = wx?.current
   const code = cur ? (WMO[cur.weather_code] || ['🌡️','—']) : ['…','']
