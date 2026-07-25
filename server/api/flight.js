@@ -1,5 +1,9 @@
 // GET /api/flight?number=JL044&date=2026-07-02
 const AUTH = process.env.SYNC_TOKEN
+// A separate read-only token (optional) baked into the client so shared users
+// get live flights without your private sync secret. Scoped to this endpoint.
+const READ = process.env.PUBLIC_READ_TOKEN
+const authorized = h => h === 'Bearer ' + AUTH || (READ && h === 'Bearer ' + READ)
 
 async function fetchStatus(number, date) {
   const url = `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(number)}/${date}`
@@ -40,7 +44,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
   if (req.method === 'OPTIONS') return res.status(204).end()
-  if ((req.headers.authorization || '') !== 'Bearer ' + AUTH)
+  if (!authorized(req.headers.authorization || ''))
     return res.status(401).json({ error: 'Unauthorized' })
 
   const { number, date } = req.query || {}

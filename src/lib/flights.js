@@ -3,14 +3,14 @@
 // provider API key). Returns null when sync/flight isn't configured, so the UI
 // can fall back to the trip's stored flight details.
 // ---------------------------------------------------------------------------
-import { getSyncConfig } from './sync.js'
+import { getReadBackend } from './publicConfig.js'
 
 export async function getFlightStatus(number, date) {
-  const cfg = await getSyncConfig()
-  if (!cfg.endpoint || !cfg.token) return null
+  const b = await getReadBackend()
+  if (!b) return null
   try {
-    const url = `${cfg.endpoint.replace(/\/$/, '')}/flight?number=${encodeURIComponent(number)}&date=${date}`
-    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + cfg.token } })
+    const url = `${b.endpoint.replace(/\/$/, '')}/flight?number=${encodeURIComponent(number)}&date=${date}`
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + b.token } })
     if (!r.ok) return null
     const { status } = await r.json()
     return status || null

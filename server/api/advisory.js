@@ -2,13 +2,16 @@
 import { fetchAdvisory } from '../lib/fcdo.js'
 
 const AUTH = process.env.SYNC_TOKEN
+// Optional read-only token (see flight.js) so shared users get advice with no setup.
+const READ = process.env.PUBLIC_READ_TOKEN
+const authorized = h => h === 'Bearer ' + AUTH || (READ && h === 'Bearer ' + READ)
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
   if (req.method === 'OPTIONS') return res.status(204).end()
-  if ((req.headers.authorization || '') !== 'Bearer ' + AUTH) return res.status(401).json({ error: 'Unauthorized' })
+  if (!authorized(req.headers.authorization || '')) return res.status(401).json({ error: 'Unauthorized' })
 
   const { cc, name } = req.query || {}
   try {

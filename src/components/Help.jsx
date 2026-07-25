@@ -12,6 +12,18 @@ export default function Help() {
         <div className="sub">A quick guide to every part of Voyager</div></div></div>
 
       <div className="card" style={card}>
+        <h3><Icon name="map" /> New here? Start with this</h3>
+        <P><b>Voyager is a private travel companion for you and your family.</b> It keeps your trips, travel documents (passports, insurance), packing lists and emergency info in one place — all <b>encrypted on your own device</b>. Nothing is readable by anyone else, and it works offline.</P>
+        <P><b>Your first few minutes:</b></P>
+        <ol style={{ fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.7, paddingLeft: 18, margin: '4px 0' }}>
+          <li>Set a <b>passphrase</b> (this encrypts everything) and save your one‑time <b>recovery code</b>.</li>
+          <li>In <b>Settings</b>, add yourself and your family, and pick <b>who you are on this device</b>.</li>
+          <li>Add your first <b>trip</b> — manually or by importing a booking — then save your key <b>documents</b> in the Vault.</li>
+        </ol>
+        <P>Everything below explains each section in more detail. It's optional reading — the app is designed to be obvious as you go.</P>
+      </div>
+
+      <div className="card" style={card}>
         <h3><Icon name="unlock" /> Getting in</h3>
         <P><b>First time:</b> create a passphrase — it encrypts everything. You'll be shown a one‑time <b>recovery code</b>; save it somewhere safe, it's the only way back in if you forget your passphrase.</P>
         <P><b>Every time after:</b> enter your passphrase (or use Face ID / passkey if enabled).</P>
