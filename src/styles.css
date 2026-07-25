@@ -321,6 +321,13 @@ input{font-family:inherit}
 
 @media(max-width:760px){.app{display:block}.sidebar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;flex-direction:row;align-items:stretch;gap:2px;height:auto;padding:5px 4px;background:var(--sidebar);border-bottom:1px solid var(--border-soft)}.brand{display:none}.nav-label{display:none}.profile{display:none}.sidebar .nav-item{flex:1;flex-direction:column;justify-content:center;gap:3px;padding:6px 2px;min-width:0}.sidebar .nav-item .ico,.sidebar .nav-item .ico svg{width:23px;height:23px}.sidebar .nav-text{font-size:9.5px;font-weight:600;line-height:1}.sidebar .nav-item.lock-out{margin-top:0}.main{padding:70px 16px 40px}}
 
+/* iOS gives date inputs a hidden min intrinsic width and ignores width:100%,
+   making them overflow their container. Strip the native styling so they behave
+   like normal full-width fields. */
+input[type="date"]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%}
+input[type="date"]::-webkit-date-and-time-value{text-align:left;margin:0}
+input[type="date"]::-webkit-calendar-picker-indicator{margin-left:auto}
+
 /* One-tap clear (×) button on text fields (inputs switched to type=search) */
 input[type="search"]{padding-right:14px}
 input[type="search"]::-webkit-search-cancel-button{
