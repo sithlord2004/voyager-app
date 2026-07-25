@@ -7,6 +7,8 @@
 // serverless function; this client-side parser keeps the app working offline.
 // ---------------------------------------------------------------------------
 
+import { AIRPORTS } from './airports.js'
+
 const MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 }
 
 // A small IATA -> city table so an arrival airport implies a destination.
@@ -18,7 +20,12 @@ export const IATA_CITY = {
   ORD:'Chicago', MIA:'Miami', YYZ:'Toronto', YYC:'Calgary', YVR:'Vancouver',
   HND:'Tokyo', NRT:'Tokyo', KIX:'Osaka', ICN:'Seoul', PEK:'Beijing', PVG:'Shanghai',
   HKG:'Hong Kong', SIN:'Singapore', BKK:'Bangkok', DXB:'Dubai', DOH:'Doha',
-  SYD:'Sydney', MEL:'Melbourne', AKL:'Auckland', DEL:'Delhi', BOM:'Mumbai'
+  SYD:'Sydney', MEL:'Melbourne', BNE:'Brisbane', PER:'Perth', HBA:'Hobart',
+  AKL:'Auckland', CHC:'Christchurch', DEL:'Delhi', BOM:'Mumbai',
+  GRU:'Sao Paulo', GIG:'Rio de Janeiro', EZE:'Buenos Aires', SCL:'Santiago',
+  LIM:'Lima', BOG:'Bogota', CUN:'Cancun', YUL:'Montreal', SEA:'Seattle',
+  BOS:'Boston', DEN:'Denver', LAS:'Las Vegas', IST:'Istanbul', DPS:'Bali',
+  CPT:'Cape Town', JNB:'Johannesburg', CAI:'Cairo', AUH:'Abu Dhabi'
 }
 
 const pad = n => String(n).padStart(2, '0')
@@ -52,17 +59,41 @@ export function extractFlights(text) {
   return out
 }
 
+// A code we recognise as a real airport (known city or in the coords table).
+const knownAirport = c => !!(IATA_CITY[c] || AIRPORTS[c])
+
+// Extract explicit route pairs: "LHR → HND", "LHR-HND", "LHR to HND".
+export function extractRoutes(text) {
+  const routes = []
+  for (const m of text.matchAll(/\b([A-Z]{3})\s*(?:→|-{1,2}|to|–|›|>)\s*([A-Z]{3})\b/g)) {
+    routes.push([m[1], m[2]])
+  }
+  return routes
+}
+
 // Airport codes and a best-guess arrival (destination).
 export function extractAirports(text) {
   const codes = []
-  // Prefer explicit routes: "LHR → HND", "LHR-HND", "LHR to HND"
-  for (const m of text.matchAll(/\b([A-Z]{3})\s*(?:→|-|to|–)\s*([A-Z]{3})\b/g)) {
-    codes.push(m[1], m[2])
-  }
+  for (const [a, b] of extractRoutes(text)) codes.push(a, b)
   if (!codes.length) for (const m of text.matchAll(/\b([A-Z]{3})\b/g)) {
-    if (IATA_CITY[m[1]]) codes.push(m[1])
+    if (knownAirport(m[1])) codes.push(m[1])
   }
   return codes
+}
+
+// Build one leg per flight number, pairing each with the route at the same
+// position (itineraries list flights and routes in the same travel order).
+export function buildLegs(text, flights) {
+  const routes = extractRoutes(text)
+  const dates = extractDates(text)
+  return flights.map((num, i) => ({
+    mode: 'flight',
+    number: num,
+    from: routes[i]?.[0] || '',
+    to: routes[i]?.[1] || '',
+    // best-effort: outbound gets the first date, a return the last
+    date: i === 0 ? (dates[0] || '') : (i === flights.length - 1 ? (dates[dates.length - 1] || '') : '')
+  }))
 }
 
 // Find the first recognisable date within ~40 chars after a label.
@@ -117,12 +148,15 @@ export function parseItinerary(text) {
   const arrCode = airports[1] || airports[0]
   if (!destinationCity && arrCode && IATA_CITY[arrCode]) destinationCity = IATA_CITY[arrCode]
 
-  const airlineMatch = text.match(/\b(Japan Airlines|Air Canada|British Airways|Lufthansa|Emirates|Qatar Airways|United|Delta|American Airlines|Ryanair|easyJet|Vueling|KLM|Air France|Singapore Airlines)\b/i)
+  const airlineMatch = text.match(/\b(Japan Airlines|Air Canada|British Airways|Lufthansa|Emirates|Qatar Airways|United|Delta|American Airlines|Ryanair|easyJet|Vueling|KLM|Air France|Singapore Airlines|Qantas|Virgin Atlantic|Cathay Pacific|Turkish Airlines|Etihad)\b/i)
+
+  const legs = buildLegs(text, flights)
 
   return {
     destinationCity: destinationCity || '',
     startDate: dates[0] || '',
     endDate: dates[dates.length - 1] || dates[0] || '',
+    legs,
     flightNumber: flights[0] || '',
     depAirport: airports[0] || '',
     arrAirport: airports[1] || arrCode || '',
@@ -148,15 +182,20 @@ export async function parseItinerarySmart(text, syncCfg) {
     if (!r.ok) return { ...local, source: 'regex' }
     const { draft } = await r.json()
     // Prefer LLM fields, but keep any local field the LLM left blank.
+    const legs = (Array.isArray(draft.legs) && draft.legs.length)
+      ? draft.legs.map(l => ({ mode: l.mode || 'flight', number: l.number || '', from: l.from || '', to: l.to || '', date: l.date || '' }))
+      : local.legs
+    const first = legs.find(l => l.mode === 'flight') || {}
     return {
       destinationCity: draft.destinationCity || local.destinationCity,
       startDate: draft.startDate || local.startDate,
       endDate: draft.endDate || local.endDate,
-      flightNumber: draft.flightNumber || local.flightNumber,
-      depAirport: draft.depAirport || local.depAirport,
-      arrAirport: draft.arrAirport || local.arrAirport,
+      legs,
+      flightNumber: first.number || local.flightNumber,
+      depAirport: first.from || local.depAirport,
+      arrAirport: first.to || local.arrAirport,
       airline: draft.airline || local.airline,
-      stay: draft.stay || local.stay,
+      stay: (draft.stay && (draft.stay.name || draft.stay.ref || draft.stay.checkIn)) ? draft.stay : local.stay,
       confidence: local.confidence,
       source: 'llm'
     }

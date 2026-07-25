@@ -96,6 +96,7 @@ export default function Trips({ trips, documents, reload }) {
   const [importing, setImporting] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [seed, setSeed] = useState(null)
   const [postcard, setPostcard] = useState(null)
   const [mapTrip, setMapTrip] = useState(null)
   async function onDelete(trip) {
@@ -117,23 +118,25 @@ export default function Trips({ trips, documents, reload }) {
       <div className="desc" style={{ marginTop: 8 }}>
         🟢 <b>forecast</b> = live forecast (trip within ~14 days) &nbsp;·&nbsp; 📅 <b>seasonal</b> = historical average for those dates
       </div>
-      {importing && <ImportModal onClose={() => setImporting(false)} onSaved={() => { setImporting(false); reload?.() }} />}
-      {(adding || editing) && <AddTripModal trip={editing}
-        onClose={() => { setAdding(false); setEditing(null) }}
-        onSaved={() => { setAdding(false); setEditing(null); reload?.() }} />}
+      {importing && <ImportModal onClose={() => setImporting(false)}
+        onSeed={s => { setImporting(false); setSeed(s) }} />}
+      {(adding || editing || seed) && <AddTripModal trip={editing} seed={seed}
+        onClose={() => { setAdding(false); setEditing(null); setSeed(null) }}
+        onSaved={() => { setAdding(false); setEditing(null); setSeed(null); reload?.() }} />}
       {postcard && <Postcard trip={postcard} onClose={() => setPostcard(null)} />}
       {mapTrip && <JourneyMap trip={mapTrip} onClose={() => setMapTrip(null)} />}
     </div>
   )
 }
 
-function AddTripModal({ onClose, onSaved, trip }) {
-  const seedLegs = trip ? tripLegs(trip) : []
-  const [city, setCity] = useState(trip?.destinationCity || '')
-  const [start, setStart] = useState(trip?.startDate || '')
-  const [end, setEnd] = useState(trip?.endDate || '')
+function AddTripModal({ onClose, onSaved, trip, seed }) {
+  const src = trip || seed || null
+  const seedLegs = src ? tripLegs(src) : []
+  const [city, setCity] = useState(src?.destinationCity || '')
+  const [start, setStart] = useState(src?.startDate || '')
+  const [end, setEnd] = useState(src?.endDate || '')
   const [legs, setLegs] = useState(seedLegs.length ? seedLegs.map(l => ({ date: l.date || '', from: l.from || '', to: l.to || '', mode: l.mode || 'flight', number: l.number || '', seat: l.seat || '' })) : [{ date: '', from: '', to: '', mode: 'flight', number: '', seat: '' }])
-  const [stays, setStays] = useState(trip?.stays || [])
+  const [stays, setStays] = useState(src?.stays || [])
   const [busy, setBusy] = useState(false)
 
   const setLeg = (i, patch) => setLegs(legs.map((l, idx) => idx === i ? { ...l, ...patch } : l))
@@ -174,7 +177,8 @@ function AddTripModal({ onClose, onSaved, trip }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
-        <h3>{trip ? 'Edit trip' : 'Add a trip'}</h3>
+        <h3>{trip ? 'Edit trip' : seed ? 'Review imported trip' : 'Add a trip'}</h3>
+        {seed && <p className="desc" style={{ marginTop: -4 }}>Pulled from your booking — check each leg, then save.</p>}
         <label>Main destination (for weather) <input value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. London" /></label>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <label style={{ flex: '1 1 140px', minWidth: 0 }}>Leaving <input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
@@ -239,7 +243,7 @@ function AddTripModal({ onClose, onSaved, trip }) {
   )
 }
 
-function ImportModal({ onClose, onSaved }) {
+function ImportModal({ onClose, onSeed }) {
   const [text, setText] = useState('')
   const [draft, setDraft] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -256,17 +260,21 @@ function ImportModal({ onClose, onSaved }) {
     setBusy(false)
   }
   async function parsePasted() { setBusy(true); await runParse(text); setBusy(false) }
-  function field(k, v) { setDraft({ ...draft, [k]: v }) }
-  function stayField(k, v) { setDraft({ ...draft, stay: { ...draft.stay, [k]: v } }) }
 
-  async function save() {
+  // All detected legs (new multi-leg array, or the single legacy flight).
+  const legs = draft
+    ? (draft.legs?.length ? draft.legs
+      : (draft.flightNumber ? [{ mode: 'flight', number: draft.flightNumber, from: draft.depAirport, to: draft.arrAirport, date: draft.startDate }] : []))
+    : []
+
+  // Hand everything to the full trip editor for review + save.
+  function proceed() {
     const stay = draft.stay
-    const start = draft.startDate || stay?.checkIn || ''
-    await createTrip({
-      destinationCity: draft.destinationCity,
-      startDate: start,
-      endDate: draft.endDate || stay?.checkOut || start,
-      legs: draft.flightNumber ? [{ from: draft.depAirport, to: draft.arrAirport, mode: 'flight', number: draft.flightNumber, date: draft.startDate }] : [],
+    onSeed({
+      destinationCity: draft.destinationCity || '',
+      startDate: draft.startDate || stay?.checkIn || '',
+      endDate: draft.endDate || stay?.checkOut || draft.startDate || '',
+      legs,
       stays: stay ? [{
         kind: stay.kind || 'hotel',
         name: (stay.name || '').trim() || 'Stay',
@@ -274,7 +282,6 @@ function ImportModal({ onClose, onSaved }) {
         ref: [stay.ref, stay.address].filter(Boolean).join(' · ')
       }] : []
     })
-    onSaved()
   }
 
   const c = draft?.confidence
@@ -284,7 +291,7 @@ function ImportModal({ onClose, onSaved }) {
         <h3>Import itinerary</h3>
         {!draft ? (
           <>
-            <p className="desc">Upload a booking PDF/email, or paste the confirmation text. We’ll pull out the trip — you confirm before saving.</p>
+            <p className="desc">Upload a booking PDF/email, or paste the confirmation text. We’ll pull out the trip — you review and edit everything before saving.</p>
             <div className="file-row">
               <label className="mini">📁 Upload file
                 <input type="file" accept=".pdf,.txt,.eml,.ics" hidden onChange={e => onFile(e.target.files[0])} />
@@ -296,33 +303,34 @@ function ImportModal({ onClose, onSaved }) {
             </label>
             <div className="modal-actions">
               <button className="btn ghost" onClick={onClose}>Cancel</button>
-              <button className="btn" onClick={parsePasted} disabled={!text.trim()}>Extract trip →</button>
+              <button className="btn" onClick={parsePasted} disabled={busy || !text.trim()}>{busy ? 'Reading…' : 'Extract trip →'}</button>
             </div>
           </>
         ) : (
           <>
-            <p className="desc">{draft.source === 'llm' ? '✨ AI-assisted extraction. ' : `Found ${c?.dates ?? 0} date(s), ${c?.flights ?? 0} flight(s). `}Check and edit:</p>
-            <label>Destination <input value={draft.destinationCity} onChange={e => field('destinationCity', e.target.value)} placeholder="City" /></label>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <label style={{ flex: '1 1 140px', minWidth: 0 }}>Leaving <input type="date" value={draft.startDate} onChange={e => field('startDate', e.target.value)} /></label>
-              <label style={{ flex: '1 1 140px', minWidth: 0 }}>Returning <input type="date" value={draft.endDate} onChange={e => field('endDate', e.target.value)} /></label>
-            </div>
-            <label>Flight number <input value={draft.flightNumber} onChange={e => field('flightNumber', e.target.value)} placeholder="e.g. JL044" /></label>
-            {draft.stay && (
-              <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 10, marginTop: 8, display: 'grid', gap: 8 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600 }}>{draft.stay.kind === 'airbnb' ? '🏠 Airbnb stay found' : '🏨 Hotel stay found'}</div>
-                <label style={{ margin: 0 }}>Property <input value={draft.stay.name || ''} onChange={e => stayField('name', e.target.value)} placeholder="Property name" /></label>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <label style={{ flex: '1 1 140px', minWidth: 0, margin: 0 }}>Check-in <input type="date" value={draft.stay.checkIn || ''} onChange={e => stayField('checkIn', e.target.value)} /></label>
-                  <label style={{ flex: '1 1 140px', minWidth: 0, margin: 0 }}>Check-out <input type="date" value={draft.stay.checkOut || ''} onChange={e => stayField('checkOut', e.target.value)} /></label>
-                </div>
-                <label style={{ margin: 0 }}>Confirmation # <input value={draft.stay.ref || ''} onChange={e => stayField('ref', e.target.value)} placeholder="e.g. HMABCDE123" /></label>
-                {draft.stay.address && <label style={{ margin: 0 }}>Address <input value={draft.stay.address} onChange={e => stayField('address', e.target.value)} /></label>}
+            <p className="desc">{draft.source === 'llm' ? '✨ AI-assisted extraction. ' : `Found ${c?.dates ?? 0} date(s), ${c?.flights ?? 0} flight(s). `}Here’s what we found:</p>
+            <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12, display: 'grid', gap: 8, fontSize: 13.5 }}>
+              <div><b>Destination</b> · {draft.destinationCity || <span style={{ opacity: .6 }}>not detected — add on next screen</span>}</div>
+              <div><b>Dates</b> · {draft.startDate || '—'}{draft.endDate && draft.endDate !== draft.startDate ? ` → ${draft.endDate}` : ''}</div>
+              <div>
+                <b>Journey</b>
+                {legs.length ? (
+                  <div style={{ marginTop: 4, display: 'grid', gap: 3 }}>
+                    {legs.map((l, i) => (
+                      <div key={i} style={{ opacity: .95 }}>
+                        {modeIcon(l.mode)} {(l.from || '?')} → {(l.to || '?')}{l.number ? ' · ' + l.number : ''}{l.date ? ' · ' + l.date : ''}
+                      </div>
+                    ))}
+                  </div>
+                ) : <span style={{ opacity: .6 }}> · no legs detected — add on next screen</span>}
               </div>
-            )}
+              {draft.stay && (
+                <div><b>Stay</b> · {draft.stay.kind === 'airbnb' ? '🏠' : '🏨'} {draft.stay.name || 'Stay'}{draft.stay.checkIn ? ' · ' + draft.stay.checkIn : ''}</div>
+              )}
+            </div>
             <div className="modal-actions">
               <button className="btn ghost" onClick={() => setDraft(null)}>← Back</button>
-              <button className="btn" onClick={save} disabled={!draft.destinationCity || !(draft.startDate || draft.stay?.checkIn)}>＋ Create trip</button>
+              <button className="btn" onClick={proceed}>Review &amp; add →</button>
             </div>
           </>
         )}
