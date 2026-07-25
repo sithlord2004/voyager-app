@@ -33,7 +33,8 @@ export default function Help() {
         <P>One trip covers your whole journey. Add it two ways:</P>
         <ul>
           <li style={li}><b>＋ Add manually</b> — set a main destination (for weather) and your Leaving/Returning dates, then add <b>legs</b> (each hop, with transport mode ✈️🚆🚗⛴️🚌 and a flight/train number) and <b>stays</b> (hotels/Airbnb with check‑in/out and confirmation).</li>
-          <li style={li}><b>📩 Import itinerary</b> — upload a booking PDF/email or paste the text; confirm the details.</li>
+          <li style={li}><b>📩 Import itinerary</b> — upload a booking PDF/email or paste the text. It pulls out <b>every</b> flight/train leg (outbound, connections and return) plus any hotel/Airbnb stay, then drops you into the trip editor to check each one before saving.</li>
+          <li style={li}>Airports always show as 3‑letter codes (LHR, MEL) whether you typed a code or a city name.</li>
           <li style={li}>Remove a trip with the <b>🗑</b> (tap again to confirm).</li>
         </ul>
       </div>
@@ -51,13 +52,19 @@ export default function Help() {
 
       <div className="card" style={card}>
         <h3><Icon name="bag" /> Packing</h3>
-        <P>A checklist per trip. Pick the trip, tick items as you pack, ＋ add your own (with a category), and ✕ remove any. The bar tracks your progress.</P>
+        <P>Tick items as you pack, ＋ add your own (with a category), and ✕ remove any. The bar tracks your progress.</P>
+        <ul>
+          <li style={li}><b>Presets</b> — start a list from a template (Beach/Sun, City break, Ski/Cold, Business, Kids/Family, Essentials).</li>
+          <li style={li}><b>Your own lists</b> — you don't need a trip to make a list. Keep a reusable <b>“My default list”</b> and create custom named lists with the <b>＋ List</b> button; rename or delete them anytime.</li>
+          <li style={li}>Pick a trip or one of your lists from the selector at the top.</li>
+        </ul>
       </div>
 
       <div className="card" style={card}>
         <h3><Icon name="lifebuoy" /> Emergency</h3>
         <ul>
           <li style={li}><b>Emergency numbers</b> for your destination country.</li>
+          <li style={li}><b>Travel safety</b> — official UK Foreign Office (FCDO) advice for the country, with a colour chip and the latest change. Needs Cloud sync turned on; you'll also get an email if the advice changes for a country you have a trip to.</li>
           <li style={li}><b>Hospitals</b> — type a city, Look up, then open nearby hospitals in Maps.</li>
           <li style={li}><b>Your embassy</b> — set your home country once; “Find embassy →” locates the nearest one.</li>
           <li style={li}><b>Contacts &amp; medical notes</b> — add your own (blood type, allergies, medications).</li>
@@ -70,6 +77,7 @@ export default function Help() {
           <li style={li}><b>Appearance</b> — Auto / Light / Dark theme.</li>
           <li style={li}><b>Your name</b> — personalises the greeting (per device).</li>
           <li style={li}><b>Family members</b> — add real family, remove demo names.</li>
+          <li style={li}><b>Who are you on this device?</b> — pick which family member this phone belongs to. Trips then only show if you're one of the travellers, so a trip only part of the family is on won't clutter everyone's app. Unassigned trips always show; a <b>Show all family trips</b> toggle reveals everything. This also hides that trip's documents and packing list on devices that aren't on it.</li>
           <li style={li}><b>Cloud sync</b> (optional) — sync encrypted documents across devices.</li>
           <li style={li}><b>Encrypted backup</b> — export/restore a <code>.voyager</code> file.</li>
           <li style={li}><b>Face ID / passkey</b> — quick biometric unlock on a device.</li>
@@ -84,15 +92,17 @@ export default function Help() {
           <li style={li}>It reloads — unlock with your main passphrase, and your documents are there.</li>
         </ol>
         <P>For ongoing sync, also turn on <b>Cloud sync</b> with the same settings on both. Same passphrase alone isn't enough to share documents — you must move the vault with the backup.</P>
-        <P><b>Sharing with a partner:</b> trips, documents and family members all sync once both devices use the same Cloud sync details (and the vault has been restored once from your backup, so documents can be opened). Your partner should <b>not</b> add herself as a new family member — that creates a separate entry, and documents won't appear under her. Instead, let your family list sync across; everyone then lines up under the right names automatically.</P>
+        <P><b>Sharing with a partner:</b> trips, documents and family members all sync once both devices use the same Cloud sync details (and the vault has been restored once from your backup, so documents can be opened). Your partner should <b>not</b> add herself as a new family member — that creates a separate entry, and documents won't appear under her. Instead, let your family list sync across; everyone then lines up under the right names automatically. Each of you should then set <b>Settings → Who are you on this device?</b> so trips filter to the right person.</P>
       </div>
 
       <div className="card" style={card}>
         <h3><Icon name="bulb" /> Good to know</h3>
         <ul>
           <li style={li}>The app updates itself automatically to the latest version.</li>
+          <li style={li}><b>Pull down</b> at the top of any screen to refresh; it also refreshes itself every few minutes.</li>
+          <li style={li}>Best used <b>portrait</b> on a phone — landscape is disabled to keep the layout tidy.</li>
           <li style={li}>Keep your recovery code and an encrypted backup — your safety net.</li>
-          <li style={li}>Works offline except for live weather, flights, hospital/embassy lookups, and sync.</li>
+          <li style={li}>Works offline except for live weather, flights, travel‑safety advice, hospital/embassy lookups, and sync.</li>
         </ul>
       </div>
     </div>
