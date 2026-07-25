@@ -178,13 +178,13 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
                 </div>
                 <div className="fl-route">
                   <div className="ap">
-                    <b>{dep?.airport || toCode(l.from) || '—'}</b>
+                    <b>{toCode(dep?.airport || l.from) || '—'}</b>
                     <div className="time">{depTime}</div>
                     {depGate && <div className="fl-gate">{depGate}</div>}
                   </div>
                   <div className="fl-line"><span>✈</span></div>
                   <div className="ap">
-                    <b>{arr?.airport || toCode(l.to) || '—'}</b>
+                    <b>{toCode(arr?.airport || l.to) || '—'}</b>
                     <div className="time">{arrTime}</div>
                     {arrGate && <div className="fl-gate">{arrGate}</div>}
                   </div>

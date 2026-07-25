@@ -55,15 +55,50 @@ const CITY_IATA = {
   'hong kong': 'HKG', taipei: 'TPE', singapore: 'SIN', bangkok: 'BKK', 'kuala lumpur': 'KUL',
   jakarta: 'CGK', bali: 'DPS', manila: 'MNL', delhi: 'DEL', mumbai: 'BOM', dubai: 'DXB',
   doha: 'DOH', 'abu dhabi': 'AUH', 'tel aviv': 'TLV', cairo: 'CAI', johannesburg: 'JNB',
-  'cape town': 'CPT', nairobi: 'NBO', casablanca: 'CMN', marrakesh: 'RAK', marrakech: 'RAK'
+  'cape town': 'CPT', nairobi: 'NBO', casablanca: 'CMN', marrakesh: 'RAK', marrakech: 'RAK',
+  'sao paulo': 'GRU', 'são paulo': 'GRU', 'rio de janeiro': 'GIG', 'buenos aires': 'EZE',
+  santiago: 'SCL', lima: 'LIM', bogota: 'BOG', cancun: 'CUN', montreal: 'YUL', calgary: 'YYC',
+  denver: 'DEN', 'las vegas': 'LAS', washington: 'IAD', 'san diego': 'SAN', dallas: 'DFW',
+  atlanta: 'ATL', honolulu: 'HNL', hanoi: 'HAN', 'ho chi minh': 'SGN', colombo: 'CMB', kathmandu: 'KTM'
 }
 
-// Normalise a leg endpoint to a short code: an existing IATA stays, a known city
-// name becomes its code, anything else is just upper-cased.
+// Normalise a leg endpoint to a short 3-letter code so flights read consistently
+// (MEL, HBA, LHR) whether the user typed a code, a city name, or something messy
+// like "Melbourne Airport" or "Melbourne (MEL)".
 export function toCode(s) {
   const t = (s || '').trim()
   if (!t) return ''
   const up = t.toUpperCase()
-  if (up.length === 3 && AIRPORTS[up]) return up
-  return CITY_IATA[t.toLowerCase()] || up
+
+  // Already a bare 3-letter code — keep it.
+  if (/^[A-Z]{3}$/.test(up)) return up
+
+  // "Melbourne (MEL)" / "Tokyo [HND]" — trust an explicit parenthesised code.
+  const paren = up.match(/[([]([A-Z]{3})[)\]]/)
+  if (paren) return paren[1]
+
+  // Exact city-name match.
+  const lower = t.toLowerCase()
+  if (CITY_IATA[lower]) return CITY_IATA[lower]
+
+  // Strip common noise ("International", "Airport", terminal, punctuation) and
+  // retry the leading city phrase.
+  const cleaned = lower
+    .replace(/\b(international|intl\.?|regional|airport|apt|terminal\s*\d*|airfield)\b/g, '')
+    .replace(/[,/(].*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (CITY_IATA[cleaned]) return CITY_IATA[cleaned]
+
+  // Try the leading word(s): "london heathrow" -> london -> LHR.
+  const words = cleaned.split(' ').filter(Boolean)
+  if (words.length > 1 && CITY_IATA[`${words[0]} ${words[1]}`]) return CITY_IATA[`${words[0]} ${words[1]}`]
+  if (words[0] && CITY_IATA[words[0]]) return CITY_IATA[words[0]]
+
+  // Any standalone 3-letter token in the string (e.g. "MEL Tullamarine").
+  const tok = up.match(/\b[A-Z]{3}\b/)
+  if (tok) return tok[0]
+
+  // Fall back to the first word, upper-cased, so at least it's uniform.
+  return (cleaned || lower).split(' ')[0].toUpperCase()
 }

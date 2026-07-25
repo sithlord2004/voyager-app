@@ -3,9 +3,13 @@ import { geocode, tripWeather, WMO, FLAGS } from '../lib/weather.js'
 import { daysUntil, createTrip, updateTrip, deleteTrip } from '../lib/db.js'
 import { parseItinerarySmart, extractTextFromFile } from '../lib/itinerary.js'
 import { getSyncConfig } from '../lib/sync.js'
+import { toCode } from '../lib/airports.js'
 import { Icon } from './Icon.jsx'
 import Postcard from './Postcard.jsx'
 import JourneyMap from './JourneyMap.jsx'
+
+// Display an endpoint consistently: flights as 3-letter codes, other modes as typed.
+const legEndpoint = (v, mode) => mode === 'flight' ? (toCode(v) || '?') : (v || '?')
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const MODES = [['flight', '✈️', 'Flight'], ['train', '🚆', 'Train'], ['car', '🚗', 'Car/Drive'], ['ferry', '⛴️', 'Ferry'], ['bus', '🚌', 'Bus']]
@@ -50,7 +54,7 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap }) {
   const cd = du < 0 ? 'past' : du === 0 ? 'today' : `in ${du} days`
   const ic = w ? (WMO[w.code] || ['', ''])[0] : ''
   const legs = tripLegs(trip)
-  const legsLine = legs.map(l => `${l.from || '?'} ${modeIcon(l.mode)} ${l.to || '?'}${l.number ? ' ' + l.number : ''}${l.seat ? ' · ' + l.seat : ''}`).join('   ·   ')
+  const legsLine = legs.map(l => `${legEndpoint(l.from, l.mode)} ${modeIcon(l.mode)} ${legEndpoint(l.to, l.mode)}${l.number ? ' ' + l.number : ''}${l.seat ? ' · ' + l.seat : ''}`).join('   ·   ')
   const liveLegs = legs.filter(l => liveUrl(l))
   const stays = trip.stays || []
   const staysLine = stays.map(s => `${s.kind === 'airbnb' ? '🏠' : '🏨'} ${s.name}${s.checkIn ? ' · ' + s.checkIn : ''}`).join('   ·   ')
