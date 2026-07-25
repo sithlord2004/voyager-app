@@ -20,11 +20,26 @@ export default function Settings({ vaultKey, people = [], reload }) {
   const [newPerson, setNewPerson] = useState('')
   const [confirmId, setConfirmId] = useState(null)
   const [theme, setTheme] = useState('auto')
+  const [meId, setMeId] = useState('')
+  const [showAll, setShowAll] = useState(false)
   const fileRef = useRef(null)
 
   useEffect(() => { isPasskeyEnabled().then(setPkEnabled) }, [])
   useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
   useEffect(() => { getSetting('theme').then(t => setTheme(t || 'auto')) }, [])
+  useEffect(() => { getSetting('myPersonId').then(v => setMeId(v || '')) }, [])
+  useEffect(() => { getSetting('showAllTrips').then(v => setShowAll(!!v)) }, [])
+
+  async function chooseMe(id) {
+    setMeId(id)
+    await setSetting('myPersonId', id)
+    reload?.()
+  }
+  async function toggleShowAll(v) {
+    setShowAll(v)
+    await setSetting('showAllTrips', v ? 1 : 0)
+    reload?.()
+  }
   async function applyTheme(t) {
     setTheme(t)
     document.documentElement.setAttribute('data-theme', t)
@@ -136,6 +151,22 @@ export default function Settings({ vaultKey, people = [], reload }) {
             onKeyDown={e => e.key === 'Enter' && addPerson()} style={{ flex: 1, minWidth: 160 }} />
           <button className="btn" onClick={addPerson}>＋ Add</button>
         </div>
+      </div>
+
+      <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
+        <h3><Icon name="user" /> Who are you on this device?</h3>
+        <p className="desc">Pick which family member this phone belongs to. Trips will then only show if you’re one of the travellers — so a trip only some of the family is on won’t clutter everyone’s app.</p>
+        <label>This device is
+          <select value={meId} onChange={e => chooseMe(e.target.value)}>
+            <option value="">Everyone (show all trips)</option>
+            {(people || []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </label>
+        <label className="switch-row" style={{ marginTop: 10 }}>
+          <span>Show all family trips (even ones I’m not on)</span>
+          <input type="checkbox" checked={showAll} onChange={e => toggleShowAll(e.target.checked)} disabled={!meId} />
+        </label>
+        <p className="desc" style={{ marginTop: 4, fontSize: 11.5 }}>Trips with no travellers assigned always show for everyone.</p>
       </div>
 
       <div className="card" style={{ maxWidth: 620 }}>

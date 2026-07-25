@@ -23,10 +23,31 @@ export default function App() {
   }, [])
 
   const reload = useCallback(async () => {
-    const [people, trips, documents, packing] = await Promise.all([
-      db.people.toArray(), db.trips.toArray(), db.documents.toArray(), db.packing.toArray()
+    const [people, trips, documents, packing, myPersonId, showAllTrips] = await Promise.all([
+      db.people.toArray(), db.trips.toArray(), db.documents.toArray(), db.packing.toArray(),
+      getSetting('myPersonId'), getSetting('showAllTrips')
     ])
-    setData({ people: people.filter(p => !p.deleted), trips: trips.filter(t => !t.deleted), documents, packing })
+    const liveTrips = trips.filter(t => !t.deleted)
+    // Per-traveller visibility: if this device is a specific person and "show all"
+    // is off, hide trips they're not on. Trips with no travellers assigned stay
+    // visible to everyone so nothing gets lost.
+    const visibleTrips = (!myPersonId || showAllTrips)
+      ? liveTrips
+      : liveTrips.filter(t => !(t.travellerIds?.length) || t.travellerIds.includes(myPersonId))
+    // Apply the same rule to anything tied to a hidden trip: its documents and
+    // packing lists. Personal docs (no tripId) and standalone packing lists
+    // (whose "tripId" is a list id, not a trip id) are unaffected.
+    const hiddenTripIds = new Set(liveTrips.filter(t => !visibleTrips.includes(t)).map(t => t.id))
+    const visibleDocuments = hiddenTripIds.size ? documents.filter(d => !d.tripId || !hiddenTripIds.has(d.tripId)) : documents
+    const visiblePacking = hiddenTripIds.size ? packing.filter(k => !hiddenTripIds.has(k.tripId)) : packing
+    setData({
+      people: people.filter(p => !p.deleted),
+      trips: visibleTrips,
+      allTripCount: liveTrips.length,
+      hiddenTripCount: liveTrips.length - visibleTrips.length,
+      documents: visibleDocuments,
+      packing: visiblePacking
+    })
   }, [])
 
   // --- Pull to refresh (mobile) ---
@@ -108,7 +129,7 @@ export default function App() {
           <div className="ptr-banner">{refreshing ? '↻ Refreshing…' : pull >= PTR_THRESH ? 'Release to refresh ↑' : 'Pull to refresh ↓'}</div>
         )}
         {view === 'dashboard' && <Dashboard refreshKey={refreshKey} trips={data.trips} documents={data.documents} people={data.people} packing={data.packing} />}
-        {view === 'trips' && <Trips trips={data.trips} documents={data.documents} reload={reload} />}
+        {view === 'trips' && <Trips trips={data.trips} documents={data.documents} reload={reload} hiddenTripCount={data.hiddenTripCount} />}
         {view === 'vault' && <Vault vaultKey={vaultKey} documents={data.documents} people={data.people} reload={reload} />}
         {view === 'packing' && <Packing trips={data.trips} packing={data.packing} reload={reload} />}
         {view === 'emergency' && <Emergency trips={data.trips} />}

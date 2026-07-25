@@ -94,16 +94,21 @@ export default function Emergency({ trips = [] }) {
   async function lookup(city) {
     if (!city.trim()) return
     setHLoading(true); setHospitals(null); setAdvisory('loading')
-    try {
-      const p = await geocode(city.trim())
-      if (p) {
-        if (p.country_code) setCc(p.country_code)
-        setCountryName(p.country || '')
-        getAdvisory(p.country_code, p.country).then(a => setAdvisory(a || { status: 'error' }))
-        const list = await fetchHospitals(p.latitude, p.longitude)
-        setHospitals(list)
-      } else { setHospitals([]); setAdvisory({ status: 'error' }) }
-    } catch { setHospitals([]); setAdvisory({ status: 'error' }) }
+    let p = null
+    try { p = await geocode(city.trim()) } catch { /* geocode failed */ }
+    if (!p) { setHospitals([]); setAdvisory({ status: 'error' }); setHLoading(false); return }
+
+    if (p.country_code) setCc(p.country_code)
+    setCountryName(p.country || '')
+
+    // Advisory and hospitals are fetched independently — a failure in one must
+    // never overwrite the other (a hospitals timeout was wiping the advisory).
+    getAdvisory(p.country_code, p.country)
+      .then(a => setAdvisory(a || { status: 'error' }))
+      .catch(() => setAdvisory({ status: 'error' }))
+
+    try { setHospitals(await fetchHospitals(p.latitude, p.longitude)) }
+    catch { setHospitals([]) }
     setHLoading(false)
   }
   async function changeHome(v) { setHome(v); await setSetting('homeCountry', v) }

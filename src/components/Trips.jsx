@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { geocode, tripWeather, WMO, FLAGS } from '../lib/weather.js'
-import { daysUntil, createTrip, updateTrip, deleteTrip } from '../lib/db.js'
+import { daysUntil, createTrip, updateTrip, deleteTrip, setSetting } from '../lib/db.js'
 import { parseItinerarySmart, extractTextFromFile } from '../lib/itinerary.js'
 import { getSyncConfig } from '../lib/sync.js'
 import { toCode } from '../lib/airports.js'
@@ -96,7 +96,7 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap }) {
   )
 }
 
-export default function Trips({ trips, documents, reload }) {
+export default function Trips({ trips, documents, reload, hiddenTripCount = 0 }) {
   const [importing, setImporting] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -105,6 +105,10 @@ export default function Trips({ trips, documents, reload }) {
   const [mapTrip, setMapTrip] = useState(null)
   async function onDelete(trip) {
     await deleteTrip(trip.id)
+    reload?.()
+  }
+  async function revealHidden() {
+    await setSetting('showAllTrips', 1)
     reload?.()
   }
   return (
@@ -116,6 +120,12 @@ export default function Trips({ trips, documents, reload }) {
           <button className="btn" onClick={() => setImporting(true)}>📩 Import itinerary</button>
         </div>
       </div>
+      {hiddenTripCount > 0 && (
+        <div className="desc" style={{ marginBottom: 10, padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 10 }}>
+          👤 Showing only trips you’re on. {hiddenTripCount} other family {hiddenTripCount === 1 ? 'trip is' : 'trips are'} hidden.{' '}
+          <a onClick={revealHidden} style={{ cursor: 'pointer', fontWeight: 600 }}>Show all →</a>
+        </div>
+      )}
       {trips.map(t => (
         <TripRow key={t.id} trip={t} onDelete={onDelete} onEdit={setEditing} onPostcard={setPostcard} onMap={setMapTrip} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
       ))}
