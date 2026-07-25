@@ -197,10 +197,8 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
         <h3>{trip ? 'Edit trip' : seed ? 'Review imported trip' : 'Add a trip'}</h3>
         {seed && <p className="desc" style={{ marginTop: -4 }}>Pulled from your booking — check each leg, then save.</p>}
         <label>Main destination (for weather) <input value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. London" /></label>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <label style={{ flex: '1 1 220px', minWidth: 0 }}>Leaving <input type="date" value={start} onChange={e => setStart(e.target.value)} style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }} /></label>
-          <label style={{ flex: '1 1 220px', minWidth: 0 }}>Returning <input type="date" value={end} onChange={e => setEnd(e.target.value)} style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }} /></label>
-        </div>
+        <label>Leaving <input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
+        <label>Returning <input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
 
         {people.length > 0 && (
           <>
