@@ -105,6 +105,7 @@ export default function Help() {
         </ol>
         <P>For ongoing sync, also turn on <b>Cloud sync</b> with the same settings on both. Same passphrase alone isn't enough to share documents — you must move the vault with the backup.</P>
         <P><b>Sharing with a partner:</b> trips, documents and family members all sync once both devices use the same Cloud sync details (and the vault has been restored once from your backup, so documents can be opened). Your partner should <b>not</b> add herself as a new family member — that creates a separate entry, and documents won't appear under her. Instead, let your family list sync across; everyone then lines up under the right names automatically. Each of you should then set <b>Settings → Who are you on this device?</b> so trips filter to the right person.</P>
+        <P><b>Installed from a link a friend shared?</b> Your copy is fully private and stays on your device — live Cloud sync between people isn't set up, so nothing you add is ever shared with anyone. To use it across <b>your own</b> devices (say phone and tablet), use the <b>backup file</b>: <b>Settings → Export backup</b> on one, then <b>Restore backup</b> on the other. That's your "sync" — no account, no server, entirely in your hands.</P>
       </div>
 
       <div className="card" style={card}>
