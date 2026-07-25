@@ -317,6 +317,6 @@ input{font-family:inherit}
 @media(max-width:600px){.file-row{flex-wrap:wrap}.file-row input,.file-row select{flex:1 1 100%;min-width:0}.file-row .btn,.file-row .mini{flex:0 0 auto}
 .topbar{gap:12px}.topbar>div:first-child{flex:1 1 100%}.topbar h2{font-size:22px}
 .modal-backdrop{padding:0}
-.modal{max-width:none!important;width:100%!important;min-height:100vh;min-height:100dvh;margin:0;border-radius:0;border:none}}
+.modal{max-width:none!important;width:100%!important;min-height:100vh;min-height:100dvh;margin:0;border-radius:0;border:none;padding:calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 24px)}}
 
 @media(max-width:760px){.app{display:block}.sidebar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;flex-direction:row;align-items:stretch;gap:2px;height:auto;padding:5px 4px;background:var(--sidebar);border-bottom:1px solid var(--border-soft)}.brand{display:none}.nav-label{display:none}.profile{display:none}.sidebar .nav-item{flex:1;flex-direction:column;justify-content:center;gap:3px;padding:6px 2px;min-width:0}.sidebar .nav-item .ico,.sidebar .nav-item .ico svg{width:23px;height:23px}.sidebar .nav-text{font-size:9.5px;font-weight:600;line-height:1}.sidebar .nav-item.lock-out{margin-top:0}.main{padding:70px 16px 40px}}

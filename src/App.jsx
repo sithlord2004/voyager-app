@@ -113,6 +113,8 @@ export default function App() {
   )
 
   function ptrStart(e) {
+    // Never start pull-to-refresh while a modal is open — let the modal scroll instead.
+    if (document.querySelector('.modal-backdrop')) { touch.current.active = false; return }
     if (window.scrollY <= 0 && !refreshing) touch.current = { y: e.touches[0].clientY, active: true }
     else touch.current.active = false
   }
