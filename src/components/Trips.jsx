@@ -226,9 +226,9 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
         <div style={{ fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 8px', fontWeight: 600 }}>Journey legs</div>
         {legs.map((l, i) => (
           <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 10, marginBottom: 10, display: 'grid', gap: 8 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input type="date" value={l.date} onChange={e => setLeg(i, { date: e.target.value })} style={{ ...fieldStyle, flex: 1, minWidth: 0 }} />
-              <select value={l.mode} onChange={e => setLeg(i, { mode: e.target.value })} style={fieldStyle}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input type="date" value={l.date} onChange={e => setLeg(i, { date: e.target.value })} style={{ ...fieldStyle, flex: '1 1 132px', minWidth: 120 }} />
+              <select value={l.mode} onChange={e => setLeg(i, { mode: e.target.value })} style={{ ...fieldStyle, flex: '2 1 150px', minWidth: 0 }}>
                 {MODES.map(([v, ic, label]) => <option key={v} value={v}>{ic} {label}</option>)}
               </select>
               {legs.length > 1 && <button onClick={() => removeLeg(i)} title="Remove leg"
