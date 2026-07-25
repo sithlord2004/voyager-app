@@ -96,7 +96,7 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap }) {
   )
 }
 
-export default function Trips({ trips, documents, reload, hiddenTripCount = 0 }) {
+export default function Trips({ trips, documents, people = [], reload, hiddenTripCount = 0 }) {
   const [importing, setImporting] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -134,7 +134,7 @@ export default function Trips({ trips, documents, reload, hiddenTripCount = 0 })
       </div>
       {importing && <ImportModal onClose={() => setImporting(false)}
         onSeed={s => { setImporting(false); setSeed(s) }} />}
-      {(adding || editing || seed) && <AddTripModal trip={editing} seed={seed}
+      {(adding || editing || seed) && <AddTripModal trip={editing} seed={seed} people={people}
         onClose={() => { setAdding(false); setEditing(null); setSeed(null) }}
         onSaved={() => { setAdding(false); setEditing(null); setSeed(null); reload?.() }} />}
       {postcard && <Postcard trip={postcard} onClose={() => setPostcard(null)} />}
@@ -143,7 +143,7 @@ export default function Trips({ trips, documents, reload, hiddenTripCount = 0 })
   )
 }
 
-function AddTripModal({ onClose, onSaved, trip, seed }) {
+function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
   const src = trip || seed || null
   const seedLegs = src ? tripLegs(src) : []
   const [city, setCity] = useState(src?.destinationCity || '')
@@ -151,7 +151,10 @@ function AddTripModal({ onClose, onSaved, trip, seed }) {
   const [end, setEnd] = useState(src?.endDate || '')
   const [legs, setLegs] = useState(seedLegs.length ? seedLegs.map(l => ({ date: l.date || '', from: l.from || '', to: l.to || '', mode: l.mode || 'flight', number: l.number || '', seat: l.seat || '' })) : [{ date: '', from: '', to: '', mode: 'flight', number: '', seat: '' }])
   const [stays, setStays] = useState(src?.stays || [])
+  const [travellerIds, setTravellerIds] = useState(src?.travellerIds || [])
   const [busy, setBusy] = useState(false)
+
+  const toggleTraveller = id => setTravellerIds(travellerIds.includes(id) ? travellerIds.filter(x => x !== id) : [...travellerIds, id])
 
   const setLeg = (i, patch) => setLegs(legs.map((l, idx) => idx === i ? { ...l, ...patch } : l))
   const addLeg = () => setLegs([...legs, { date: '', from: '', to: '', mode: 'flight', number: '', seat: '' }])
@@ -179,7 +182,7 @@ function AddTripModal({ onClose, onSaved, trip, seed }) {
         }
       })
     const cleanStays = stays.filter(s => s.name.trim()).map(s => ({ ...s, name: s.name.trim(), ref: (s.ref || '').trim() }))
-    const fields = { destinationCity: city.trim(), startDate: start, endDate: end || start, countryCode, legs: cleanLegs, stays: cleanStays }
+    const fields = { destinationCity: city.trim(), startDate: start, endDate: end || start, countryCode, legs: cleanLegs, stays: cleanStays, travellerIds }
     if (trip) await updateTrip(trip.id, fields)
     else await createTrip(fields)
     setBusy(false)
@@ -198,6 +201,29 @@ function AddTripModal({ onClose, onSaved, trip, seed }) {
           <label style={{ flex: '1 1 140px', minWidth: 0 }}>Leaving <input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
           <label style={{ flex: '1 1 140px', minWidth: 0 }}>Returning <input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
         </div>
+
+        {people.length > 0 && (
+          <>
+            <div style={{ fontSize: 12.5, color: 'var(--text-2)', margin: '10px 0 8px', fontWeight: 600 }}>Who's travelling?</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+              {people.map(p => {
+                const on = travellerIds.includes(p.id)
+                return (
+                  <button key={p.id} type="button" onClick={() => toggleTraveller(p.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 7, padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
+                      border: '1px solid ' + (on ? (p.color || '#3b82f6') : 'var(--border)'),
+                      background: on ? (p.color || '#3b82f6') : 'transparent',
+                      color: on ? '#fff' : 'var(--text)', fontSize: 13, fontWeight: 600
+                    }}>
+                    <span>{on ? '✓' : '＋'}</span>{p.name}
+                  </button>
+                )
+              })}
+            </div>
+            {travellerIds.length === 0 && <p className="desc" style={{ marginTop: 0, fontSize: 11.5 }}>Tip: with nobody selected, this trip shows for everyone.</p>}
+          </>
+        )}
 
         <div style={{ fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 8px', fontWeight: 600 }}>Journey legs</div>
         {legs.map((l, i) => (

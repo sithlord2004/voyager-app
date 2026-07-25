@@ -22,7 +22,31 @@ function Ring({ pct }) {
   )
 }
 
-export default function Dashboard({ trips, documents, people, packing = [], refreshKey }) {
+export default function Dashboard({ trips, documents, people, packing = [], refreshKey, setView }) {
+  // Brand-new install: no family added yet. Show a friendly welcome instead of
+  // empty widgets, guiding the user to set up.
+  const firstRun = (people?.length || 0) === 0 && (trips?.length || 0) === 0
+  if (firstRun) {
+    return (
+      <div>
+        <div className="topbar"><div><h2>Welcome to Voyager 🧭</h2>
+          <div className="sub">Your private, encrypted travel companion. Let's get you set up.</div></div></div>
+        <div className="card" style={{ maxWidth: 640 }}>
+          <h3><Icon name="bulb" /> Three quick steps</h3>
+          <ol style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7, paddingLeft: 18 }}>
+            <li><b>Add yourself and your family</b> — in Settings, so documents and trips can belong to the right people.</li>
+            <li><b>Add your first trip</b> — manually, or import a booking email/PDF.</li>
+            <li><b>Save your documents</b> — passports and more, encrypted on your device.</li>
+          </ol>
+          <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 8, flexWrap: 'wrap' }}>
+            <button className="btn" onClick={() => setView?.('settings')}>👥 Add your family →</button>
+            <button className="btn ghost" onClick={() => setView?.('trips')}>✈️ Add a trip</button>
+          </div>
+          <p className="desc" style={{ marginTop: 12, fontSize: 12 }}>Everything stays on your device, encrypted with your passphrase. Cloud sync is optional and off by default.</p>
+        </div>
+      </div>
+    )
+  }
   const [name, setName] = useState('')
   useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
   const hour = new Date().getHours()

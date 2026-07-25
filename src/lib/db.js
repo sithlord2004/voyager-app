@@ -86,39 +86,10 @@ export async function isVaultInitialised() {
   return !!(await getSetting('vault'))
 }
 
-// ---- Seed demo data so the app isn't empty on first unlock ----
-export async function seedIfEmpty() {
-  if (await db.people.count()) return
-  await db.people.bulkAdd([
-    { id: 'p1', name: 'Amit', initials: 'AM', color: '#3b82f6', relationship: 'self' },
-    { id: 'p2', name: 'Priya', initials: 'PM', color: '#8b5cf6', relationship: 'spouse' },
-    { id: 'p3', name: 'Aria', initials: 'AR', color: '#06b6d4', relationship: 'child' },
-    { id: 'p4', name: 'Dev', initials: 'DV', color: '#22c55e', relationship: 'child' }
-  ])
-  await db.trips.bulkAdd([
-    { id: 't1', destinationCity: 'Kyoto', countryCode: 'JP', startDate: '2026-07-02', endDate: '2026-07-12', travellerIds: ['p1','p2','p3','p4'], flight: { airline: 'Japan Airlines', number: 'JL044', depAirport: 'LHR', arrAirport: 'HND', depTime: '10:35' } },
-    { id: 't2', destinationCity: 'Barcelona', countryCode: 'ES', startDate: '2026-09-14', endDate: '2026-09-21', travellerIds: ['p1','p2'], flight: null },
-    { id: 't3', destinationCity: 'Banff', countryCode: 'CA', startDate: '2026-12-20', endDate: '2026-12-30', travellerIds: ['p1','p2','p3','p4'], flight: { airline: 'Air Canada', number: 'AC859', depAirport: 'LHR', arrAirport: 'YYC', depTime: '13:05' } }
-  ])
-  // Documents start as metadata-only stubs; real encrypted bytes are added
-  // when the user scans a file in the Vault.
-  await db.documents.bulkAdd([
-    { id: 'd1', personId: 'p1', type: 'Passport', title: 'Passport', expiryDate: '2031-03-12', tripId: null, blob: null },
-    { id: 'd2', personId: 'p2', type: 'Passport', title: 'Passport', expiryDate: '2031-07-08', tripId: null, blob: null },
-    { id: 'd3', personId: 'p3', type: 'Passport', title: 'Passport', expiryDate: '2026-08-31', tripId: null, blob: null },
-    { id: 'd4', personId: 'p1', type: 'Driving licence', title: 'UK licence', expiryDate: '2026-10-14', tripId: null, blob: null },
-    { id: 'd5', personId: 'p1', type: 'Travel insurance', title: 'AXA-99481', expiryDate: '2027-01-01', tripId: null, blob: null },
-    { id: 'd6', personId: 'p3', type: 'Vaccination record', title: 'Vaccinations', expiryDate: null, tripId: null, blob: null }
-  ])
-  await db.packing.bulkAdd([
-    { id: 'k1', tripId: 't1', category: 'Documents', name: 'Passports (x4)', checked: true, source: 'template' },
-    { id: 'k2', tripId: 't1', category: 'Documents', name: 'Printed e-tickets', checked: false, source: 'template' },
-    { id: 'k3', tripId: 't1', category: 'Clothing', name: 'Rain jacket', checked: false, source: 'weather-auto' },
-    { id: 'k4', tripId: 't1', category: 'Weather-based', name: 'Umbrella', checked: false, source: 'weather-auto' },
-    { id: 'k5', tripId: 't1', category: 'Electronics', name: 'Type-A adapter', checked: true, source: 'template' },
-    { id: 'k6', tripId: 't1', category: 'Kids', name: 'EpiPen', checked: true, source: 'manual' }
-  ])
-}
+// First run starts empty — no demo data — so the app is ready to hand to anyone.
+// A welcome card on the Dashboard guides a new user to add their family and
+// first trip. (Kept as a no-op function so callers don't need to change.)
+export async function seedIfEmpty() { /* intentionally empty */ }
 
 // Days until a date string (negative = past).
 export function daysUntil(dateStr) {
