@@ -322,9 +322,9 @@ input{font-family:inherit}
 @media(max-width:760px){.app{display:block}.sidebar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;flex-direction:row;align-items:stretch;gap:2px;height:auto;padding:5px 4px;background:var(--sidebar);border-bottom:1px solid var(--border-soft)}.brand{display:none}.nav-label{display:none}.profile{display:none}.sidebar .nav-item{flex:1;flex-direction:column;justify-content:center;gap:3px;padding:6px 2px;min-width:0}.sidebar .nav-item .ico,.sidebar .nav-item .ico svg{width:23px;height:23px}.sidebar .nav-text{font-size:9.5px;font-weight:600;line-height:1}.sidebar .nav-item.lock-out{margin-top:0}.main{padding:70px 16px 40px}}
 
 /* One-tap clear (×) button on text fields (inputs switched to type=search) */
-input[type="search"]{padding-right:34px}
+input[type="search"]{padding-right:14px}
 input[type="search"]::-webkit-search-cancel-button{
   -webkit-appearance:none;appearance:none;
-  height:22px;width:22px;margin-left:6px;cursor:pointer;
-  background:center/22px 22px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9' fill='%2394a3b8'/%3E%3Cpath d='M6.7 6.7l6.6 6.6M13.3 6.7l-6.6 6.6' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  height:20px;width:20px;margin-left:8px;margin-right:-2px;cursor:pointer;
+  background:center/20px 20px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9' fill='%2394a3b8'/%3E%3Cpath d='M6.7 6.7l6.6 6.6M13.3 6.7l-6.6 6.6' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
 }
