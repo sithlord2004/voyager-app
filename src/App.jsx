@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { db, seedIfEmpty, getSetting } from './lib/db.js'
-import { getSyncConfig, syncNow } from './lib/sync.js'
+import { getSyncConfig, setSyncConfig, syncNow } from './lib/sync.js'
+import { readInviteFromHash, clearInviteHash } from './lib/invite.js'
 import LockScreen from './components/LockScreen.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Dashboard from './components/Dashboard.jsx'
@@ -16,6 +17,22 @@ export default function App() {
   const [vaultKey, setVaultKey] = useState(null)   // in-memory only; null = locked
   const [view, setView] = useState('dashboard')
   const [data, setData] = useState(null)
+  // An invite link (#invite=...) captured on load — offered once the vault is unlocked.
+  const [invite, setInvite] = useState(() => readInviteFromHash())
+  const [joining, setJoining] = useState('')
+
+  async function acceptInvite() {
+    setJoining('Joining…')
+    try {
+      const cur = await getSyncConfig()
+      await setSyncConfig({ ...cur, enabled: true, endpoint: invite.endpoint, token: invite.token, familyId: invite.familyId })
+      clearInviteHash()
+      try { await syncNow() } catch { /* first sync may be slow/offline */ }
+      await reload()
+      setInvite(null); setJoining('')
+    } catch { setJoining('⚠️ Could not join — check the link and try again.') }
+  }
+  function dismissInvite() { clearInviteHash(); setInvite(null) }
 
   // Apply saved theme (auto / light / dark) on load.
   useEffect(() => {
@@ -137,6 +154,25 @@ export default function App() {
         {view === 'help' && <Help />}
         <footer className="app-footer">Voyager · {versionLabel()}</footer>
       </main>
+
+      {invite && (
+        <div className="modal-backdrop" onClick={dismissInvite}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <h3>📲 Join a shared family?</h3>
+            <p className="desc">This invite will connect this device to a shared Cloud sync so you see the same trips and documents.</p>
+            <div className="desc" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
+              <div><b>Family</b> · {invite.familyId || '—'}</div>
+              <div style={{ wordBreak: 'break-all' }}><b>Server</b> · {invite.endpoint}</div>
+            </div>
+            <p className="desc" style={{ fontSize: 11.5, marginTop: 8 }}>Only accept invites from someone you trust. To open shared documents you'll also need their passphrase (or a restored backup).</p>
+            {joining && <div className="desc">{joining}</div>}
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={dismissInvite} disabled={!!joining && joining === 'Joining…'}>Not now</button>
+              <button className="btn" onClick={acceptInvite} disabled={joining === 'Joining…'}>{joining === 'Joining…' ? 'Joining…' : 'Join family'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

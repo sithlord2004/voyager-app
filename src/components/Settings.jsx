@@ -3,6 +3,8 @@ import { getSyncConfig, setSyncConfig, syncNow } from '../lib/sync.js'
 import { exportBackup, importBackup } from '../lib/backup.js'
 import { passkeySupported, isPasskeyEnabled, enablePasskey, disablePasskey } from '../lib/webauthn.js'
 import { db, getSetting, setSetting, createPerson, deletePerson } from '../lib/db.js'
+import { makeInviteUrl } from '../lib/invite.js'
+import QRCode from 'qrcode'
 import { Icon } from './Icon.jsx'
 
 const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
@@ -22,6 +24,11 @@ export default function Settings({ vaultKey, people = [], reload }) {
   const [theme, setTheme] = useState('auto')
   const [meId, setMeId] = useState('')
   const [showAll, setShowAll] = useState(false)
+  const [invite, setInvite] = useState(null)   // { mode: 'mine' | 'new' } when the modal is open
+  const [newFam, setNewFam] = useState('')
+  const [inviteUrl, setInviteUrl] = useState('')
+  const [inviteQr, setInviteQr] = useState('')
+  const [copied, setCopied] = useState(false)
   const fileRef = useRef(null)
 
   useEffect(() => { isPasskeyEnabled().then(setPkEnabled) }, [])
@@ -105,6 +112,35 @@ export default function Settings({ vaultKey, people = [], reload }) {
     try { const r = await syncNow(); setMsg(`✅ Synced · pushed ${r.pushed}, pulled ${r.pulled}` + (r.failed ? `, ${r.failed} too large` : '')) }
     catch (e) { setMsg('⚠️ ' + e.message) }
   }
+  // Build the QR + link for a given Family ID (reuses this device's endpoint + token).
+  async function buildInvite(familyId) {
+    const url = makeInviteUrl({ endpoint: cfg.endpoint, token: cfg.token, familyId })
+    setInviteUrl(url)
+    let qr = ''
+    try { qr = await QRCode.toDataURL(url, { width: 240, margin: 1 }) } catch { /* ignore */ }
+    setInviteQr(qr)
+  }
+  async function openInvite() {
+    await setSyncConfig(cfg)   // make sure we share what's currently on screen
+    setCopied(false); setNewFam(''); setInviteUrl(''); setInviteQr('')
+    setInvite({ mode: 'mine' })
+    await buildInvite(cfg.familyId)
+  }
+  function switchInviteMode(mode) {
+    setCopied(false); setInviteUrl(''); setInviteQr('')
+    setInvite({ mode })
+    if (mode === 'mine') buildInvite(cfg.familyId)
+  }
+  async function genNewFamily() {
+    const f = newFam.trim()
+    if (!f) return
+    setCopied(false)
+    await buildInvite(f)
+  }
+  async function copyInvite() {
+    try { await navigator.clipboard.writeText(inviteUrl); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch { /* ignore */ }
+  }
+  const canInvite = cfg.enabled && cfg.endpoint && cfg.token && cfg.familyId
 
   return (
     <div>
@@ -191,13 +227,48 @@ export default function Settings({ vaultKey, people = [], reload }) {
                  placeholder="shared secret from your backend" />
         </label>
 
-        <div className="modal-actions" style={{ marginTop: 8 }}>
+        <div className="modal-actions" style={{ marginTop: 8, flexWrap: 'wrap' }}>
           <button className="btn ghost" onClick={save}>Save</button>
           <button className="btn" onClick={test} disabled={!cfg.enabled}>☁️ Sync now</button>
+          {canInvite && <button className="btn ghost" onClick={openInvite}>📲 Invite a device</button>}
         </div>
         {msg && <div className="desc" style={{ marginTop: 12 }}>{msg}</div>}
         {cfg.lastSync ? <div className="desc">Last sync: {new Date(cfg.lastSync).toLocaleString()}</div> : null}
+        <p className="desc" style={{ marginTop: 10, fontSize: 11.5 }}>“Invite a device” makes a QR/link that sets up sync on another phone in one tap — share it only with people you want on this same family.</p>
       </div>
+
+      {invite && (
+        <div className="modal-backdrop" onClick={() => setInvite(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400, textAlign: 'center' }}>
+            <h3>📲 Invite a device</h3>
+            <div className="seg" style={{ marginBottom: 12 }}>
+              <button className={invite.mode === 'mine' ? 'active' : ''} onClick={() => switchInviteMode('mine')}>👨‍👩‍👧 My family</button>
+              <button className={invite.mode === 'new' ? 'active' : ''} onClick={() => switchInviteMode('new')}>✨ New group</button>
+            </div>
+
+            {invite.mode === 'mine' ? (
+              <p className="desc">Add another phone to <b>your</b> family ({cfg.familyId}). Scan this code with the other phone's camera, or send the link. Both devices then share the same trips and documents.</p>
+            ) : (
+              <>
+                <p className="desc">Set up a <b>separate</b> group (e.g. the parents) that syncs together but is completely walled off from your family. Give it a name, then send the same code/link to everyone in that group.</p>
+                <div style={{ display: 'flex', gap: 8, margin: '4px 0 8px' }}>
+                  <input value={newFam} onChange={e => setNewFam(e.target.value)} placeholder="Group name, e.g. smith-parents"
+                    onKeyDown={e => e.key === 'Enter' && genNewFamily()} style={{ flex: 1 }} />
+                  <button className="btn" onClick={genNewFamily} disabled={!newFam.trim()}>Make</button>
+                </div>
+              </>
+            )}
+
+            {inviteQr && <img src={inviteQr} alt="Invite QR code" style={{ width: 220, height: 220, borderRadius: 12, background: '#fff', padding: 8 }} />}
+
+            <div className="modal-actions" style={{ justifyContent: 'center', marginTop: 10 }}>
+              <button className="btn" onClick={copyInvite} disabled={!inviteUrl}>{copied ? '✅ Copied' : '🔗 Copy link'}</button>
+              <button className="btn ghost" onClick={() => setInvite(null)}>Done</button>
+            </div>
+            <p className="desc" style={{ marginTop: 10, fontSize: 11 }}>This link contains your sync secret — treat it like a password and don't post it publicly. To open shared documents, the other device also needs that group's passphrase (or a restored backup).</p>
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
         <h3><Icon name="download" /> Encrypted backup</h3>
