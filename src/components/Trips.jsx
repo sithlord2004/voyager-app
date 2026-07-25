@@ -198,8 +198,8 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
         {seed && <p className="desc" style={{ marginTop: -4 }}>Pulled from your booking — check each leg, then save.</p>}
         <label>Main destination (for weather) <input value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. London" /></label>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <label style={{ flex: '1 1 140px', minWidth: 0 }}>Leaving <input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
-          <label style={{ flex: '1 1 140px', minWidth: 0 }}>Returning <input type="date" value={end} onChange={e => setEnd(e.target.value)} /></label>
+          <label style={{ flex: '1 1 220px', minWidth: 0 }}>Leaving <input type="date" value={start} onChange={e => setStart(e.target.value)} style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }} /></label>
+          <label style={{ flex: '1 1 220px', minWidth: 0 }}>Returning <input type="date" value={end} onChange={e => setEnd(e.target.value)} style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }} /></label>
         </div>
 
         {people.length > 0 && (
@@ -229,7 +229,7 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
         {legs.map((l, i) => (
           <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 10, marginBottom: 10, display: 'grid', gap: 8 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input type="date" value={l.date} onChange={e => setLeg(i, { date: e.target.value })} style={{ ...fieldStyle, flex: 1 }} />
+              <input type="date" value={l.date} onChange={e => setLeg(i, { date: e.target.value })} style={{ ...fieldStyle, flex: 1, minWidth: 0 }} />
               <select value={l.mode} onChange={e => setLeg(i, { mode: e.target.value })} style={fieldStyle}>
                 {MODES.map(([v, ic, label]) => <option key={v} value={v}>{ic} {label}</option>)}
               </select>
@@ -265,9 +265,9 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
               <button onClick={() => removeStay(i)} title="Remove stay"
                 style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 16 }}>✕</button>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input type="date" value={s.checkIn} onChange={e => setStay(i, { checkIn: e.target.value })} style={{ ...fieldStyle, flex: 1 }} />
-              <input type="date" value={s.checkOut} onChange={e => setStay(i, { checkOut: e.target.value })} style={{ ...fieldStyle, flex: 1 }} />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input type="date" value={s.checkIn} onChange={e => setStay(i, { checkIn: e.target.value })} style={{ ...fieldStyle, flex: '1 1 140px', minWidth: 0 }} />
+              <input type="date" value={s.checkOut} onChange={e => setStay(i, { checkOut: e.target.value })} style={{ ...fieldStyle, flex: '1 1 140px', minWidth: 0 }} />
             </div>
             <input value={s.ref} onChange={e => setStay(i, { ref: e.target.value })} placeholder="Confirmation # / address (optional)" style={fieldStyle} />
           </div>
