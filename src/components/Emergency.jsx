@@ -99,11 +99,11 @@ export default function Emergency({ trips = [] }) {
       if (p) {
         if (p.country_code) setCc(p.country_code)
         setCountryName(p.country || '')
-        getAdvisory(p.country_code, p.country).then(a => setAdvisory(a || 'unavailable'))
+        getAdvisory(p.country_code, p.country).then(a => setAdvisory(a || { status: 'error' }))
         const list = await fetchHospitals(p.latitude, p.longitude)
         setHospitals(list)
-      } else { setHospitals([]); setAdvisory('unavailable') }
-    } catch { setHospitals([]); setAdvisory('unavailable') }
+      } else { setHospitals([]); setAdvisory({ status: 'error' }) }
+    } catch { setHospitals([]); setAdvisory({ status: 'error' }) }
     setHLoading(false)
   }
   async function changeHome(v) { setHome(v); await setSetting('homeCountry', v) }
@@ -139,11 +139,20 @@ export default function Emergency({ trips = [] }) {
       <Collapsible id="emg-safety" icon="shield" title={`Travel safety${countryName ? ' · ' + countryName : ''}`} defaultOpen>
         {advisory === null && <div className="desc">Enter a destination above to see its official travel advice.</div>}
         {advisory === 'loading' && <div className="desc">Checking the latest official travel advice…</div>}
-        {advisory === 'unavailable' && (
+        {advisory?.status === 'unconfigured' && (
           <div className="desc">Live advice needs Cloud sync configured (Settings). You can still check the{' '}
             <a href="https://www.gov.uk/foreign-travel-advice" target="_blank" rel="noopener noreferrer">official FCDO travel advice →</a></div>
         )}
-        {advisory && typeof advisory === 'object' && advisory.found && (
+        {advisory?.status === 'error' && (
+          <div className="desc">Couldn’t load official advice right now.{' '}
+            <a onClick={() => lookup(dest)} style={{ cursor: 'pointer' }}>Try again</a> · or read the{' '}
+            <a href="https://www.gov.uk/foreign-travel-advice" target="_blank" rel="noopener noreferrer">official FCDO travel advice →</a></div>
+        )}
+        {(advisory?.status === 'none' || (advisory?.status === 'ok' && advisory.found === false)) && (
+          <div className="desc">No specific FCDO page found for this destination.{' '}
+            <a href="https://www.gov.uk/foreign-travel-advice" target="_blank" rel="noopener noreferrer">Browse travel advice →</a></div>
+        )}
+        {advisory?.status === 'ok' && advisory.found && (
           <>
             <span className={'adv-chip adv-' + advisory.level}>{advisory.levelLabel}</span>
             {advisory.summary && <p className="desc" style={{ marginTop: 2 }}>{advisory.summary}</p>}
@@ -154,10 +163,6 @@ export default function Emergency({ trips = [] }) {
             </div>
             <div className="desc" style={{ marginTop: 6, fontSize: 11 }}>Source: UK Foreign Office (FCDO).</div>
           </>
-        )}
-        {advisory && typeof advisory === 'object' && advisory.found === false && (
-          <div className="desc">No specific FCDO page found for this destination.{' '}
-            <a href="https://www.gov.uk/foreign-travel-advice" target="_blank" rel="noopener noreferrer">Browse travel advice →</a></div>
         )}
       </Collapsible>
 
