@@ -106,7 +106,7 @@ export default function Postcard({ trip, onClose }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 380, textAlign: 'center' }}>
         <canvas ref={canvasRef} width={1080} height={1350}
-          style={{ width: '100%', borderRadius: 14, display: busy ? 'none' : 'block' }} />
+          style={{ maxWidth: '100%', maxHeight: '68vh', width: 'auto', borderRadius: 14, display: busy ? 'none' : 'block', margin: '0 auto' }} />
         {busy && <div className="empty"><div className="ico" style={{ fontSize: 22 }}>🎴</div><b>Creating your postcard…</b></div>}
         <div className="modal-actions" style={{ justifyContent: 'center', marginTop: 14 }}>
           <button className="btn ghost" onClick={onClose}>Close</button>
