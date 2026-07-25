@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { geocode, tripWeather, WMO, FLAGS } from '../lib/weather.js'
 
 const FONT = '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
@@ -102,7 +103,7 @@ export default function Postcard({ trip, onClose }) {
     }
   }
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 380, textAlign: 'center' }}>
         <canvas ref={canvasRef} width={1080} height={1350}
@@ -114,6 +115,7 @@ export default function Postcard({ trip, onClose }) {
           <button className="btn" onClick={share} disabled={busy}>📤 Share</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
