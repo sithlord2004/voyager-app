@@ -15,6 +15,9 @@
 import { db, getSetting, setSetting, markSynced } from './db.js'
 
 const MAX_BATCH_BYTES = 3_000_000   // keep each request well under typical ~4.5MB limits
+// A single record bigger than this can never fit in one request, so there's no
+// point retrying it forever — we report it instead so the user can shrink it.
+const MAX_RECORD_BYTES = 3_800_000
 
 export async function getSyncConfig() {
   return (await getSetting('sync')) || { enabled: false, endpoint: '', token: '', familyId: '', lastSync: 0 }
@@ -47,6 +50,7 @@ export async function syncNow() {
   const url = cfg.endpoint.replace(/\/$/, '') + '/sync'
   const since = cfg.lastSync || 0
   let pushed = 0, pulled = 0, failed = 0, serverTime = Date.now()
+  const oversized = []   // records that can never fit in one request
 
   // One request. `body` supplies whichever table's batch we're pushing (others stay empty).
   async function call(body) {
@@ -95,9 +99,21 @@ export async function syncNow() {
     }
     for (const rec of dirty) {
       const sz = JSON.stringify(rec).length
+      // Too big to ever upload as one request — skip it and say so, rather than
+      // silently failing on every future sync.
+      if (sz > MAX_RECORD_BYTES) {
+        oversized.push({
+          table, id: rec.id,
+          title: rec.title || rec.type || rec.id,
+          mb: +(sz / 1048576).toFixed(1),
+          isImage: (rec.mime || '').startsWith('image/')
+        })
+        failed++
+        continue
+      }
       if (batch.length && bytes + sz > MAX_BATCH_BYTES) await flush()
       batch.push(rec); bytes += sz
-      if (bytes >= MAX_BATCH_BYTES) await flush()   // an oversized record goes on its own
+      if (bytes >= MAX_BATCH_BYTES) await flush()   // a near-limit record goes on its own
     }
     await flush()
   }
@@ -106,5 +122,5 @@ export async function syncNow() {
   await pushTable('documents')
 
   await setSyncConfig({ ...cfg, lastSync: serverTime })
-  return { pushed, pulled, failed }
+  return { pushed, pulled, failed, oversized }
 }

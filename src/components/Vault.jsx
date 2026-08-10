@@ -117,6 +117,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
   const [msg, setMsg] = useState('')
   const [adding, setAdding] = useState(false)
   const [profileFor, setProfileFor] = useState(null)   // person whose profile is open
+  const [oversized, setOversized] = useState([])       // docs too big to upload
   const [syncOn, setSyncOn] = useState(false)
   const [viewer, setViewer] = useState(null) // { url, mime, name } for the in-app viewer
   const ownerName = id => people.find(p => p.id === id)?.name || ''
@@ -152,8 +153,35 @@ export default function Vault({ vaultKey, documents, people, reload }) {
     setMsg('Syncing…')
     try {
       const r = await syncNow()
-      flash(`✅ Synced · ↑${r.pushed} ↓${r.pulled}` + (r.failed ? ` · ⚠️ ${r.failed} too large` : ''))
+      setOversized(r.oversized || [])
+      flash(`✅ Synced · ↑${r.pushed} ↓${r.pulled}` + (r.failed ? ` · ⚠️ ${r.failed} couldn’t upload` : ''))
     } catch (e) { flash('⚠️ ' + e.message) }
+  }
+
+  // Re-compress an already-stored photo that's too big to sync, then retry.
+  async function shrinkStored(item) {
+    const doc = await db.documents.get(item.id)
+    if (!doc?.blob) return
+    if (!(doc.mime || '').startsWith('image/')) {
+      flash('⚠️ Only photos can be shrunk — replace this file with a smaller one.')
+      return
+    }
+    setMsg('Shrinking…')
+    try {
+      const bytes = await decryptBytes(vaultKey, doc.blob)
+      const bmp = await createImageBitmap(new Blob([bytes], { type: doc.mime }))
+      const scale = Math.min(1, 1500 / Math.max(bmp.width, bmp.height))
+      const c = document.createElement('canvas')
+      c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale)
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
+      const out = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.7))
+      const blob = await encryptBytes(vaultKey, await out.arrayBuffer())
+      await saveDocument({ ...doc, blob, mime: 'image/jpeg' })
+      setOversized(o => o.filter(x => x.id !== item.id))
+      flash('✅ Shrunk — syncing…')
+      try { await syncNow() } catch { /* next sync will pick it up */ }
+      reload()
+    } catch { flash('⚠️ Couldn’t shrink that one.') }
   }
   function flash(t) { setMsg(t); reload(); setTimeout(() => setMsg(''), 2600) }
 
@@ -198,6 +226,25 @@ export default function Vault({ vaultKey, documents, people, reload }) {
         <div className="body"><b>Vault unlocked</b>
           <small>Files are AES-256 encrypted with your passphrase-derived key before being stored{syncOn ? ' or synced' : ''}.</small></div>
       </div>
+
+      {oversized.length > 0 && (
+        <div className="alert warn banner" style={{ display: 'block' }}>
+          <b style={{ fontSize: 13.5 }}>
+            {oversized.length} document{oversized.length > 1 ? 's are' : ' is'} too large to sync
+          </b>
+          <small style={{ display: 'block', color: 'var(--text-3)', marginTop: 3 }}>
+            These stay safe on this device, but can’t upload to your other devices until they’re smaller.
+          </small>
+          {oversized.map(o => (
+            <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, flex: 1, minWidth: 0 }}>{o.title} · {o.mb} MB</span>
+              {o.isImage
+                ? <button className="mini" onClick={() => shrinkStored(o)}>Shrink &amp; retry</button>
+                : <span className="mini muted">Replace with a smaller file</span>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {people.length > 0 && (
         <Collapsible id="vault-profiles" icon="idcard" title="Travel profiles"

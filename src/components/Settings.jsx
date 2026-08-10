@@ -116,7 +116,11 @@ export default function Settings({ vaultKey, people = [], reload }) {
   async function test() {
     await setSyncConfig(cfg)
     setMsg('Syncing…')
-    try { const r = await syncNow(); setMsg(`✅ Synced · pushed ${r.pushed}, pulled ${r.pulled}` + (r.failed ? `, ${r.failed} too large` : '')) }
+    try {
+      const r = await syncNow()
+      setMsg(`✅ Synced · pushed ${r.pushed}, pulled ${r.pulled}`
+        + (r.failed ? ` · ⚠️ ${r.failed} couldn’t upload — open the Vault to fix` : ''))
+    }
     catch (e) { setMsg('⚠️ ' + e.message) }
   }
   // Build the QR + link for a given Family ID (reuses this device's endpoint + token).
