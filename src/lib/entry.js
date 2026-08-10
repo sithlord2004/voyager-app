@@ -21,7 +21,22 @@ const THREE_MONTH = new Set([
   'CZ','HU','HR','RO','SK','SI','EE','LV','LT','LU','MT','BG'
 ])
 
+import { airportCountry } from './airports.js'
+
 const DAY = 86400000
+
+// Is every flight on this trip inside one country? That makes it a domestic
+// trip for everyone on it — which is a property of the journey, so it doesn't
+// depend on any per-device setting and works the same on every phone.
+function legsAreDomestic(trip, dest) {
+  if (!dest) return false
+  const points = (trip.legs || [])
+    .filter(l => (l.mode || 'flight') === 'flight')
+    .flatMap(l => [l.from, l.to])
+    .filter(Boolean)
+  if (!points.length) return false
+  return points.every(p => airportCountry(p) === dest)
+}
 const addMonths = (date, n) => { const d = new Date(date); d.setMonth(d.getMonth() + n); return d }
 const fmt = d => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -64,9 +79,10 @@ export function checkEntry(trip, travellers, passports, live, nationalities = {}
   const dest = (trip.countryCode || '').toUpperCase()
   const home = (homeCode || '').toUpperCase()
 
-  // Domestic trip: flying within your own country needs no passport (airlines
-  // still want photo ID, but that's not an entry requirement).
-  if (dest && home && dest === home) {
+  // Domestic trip: no border is crossed, so there are no entry requirements.
+  // We trust the trip's own flights first (same answer on every device), and
+  // fall back to "destination is where you live" when there are no flights.
+  if (legsAreDomestic(trip, dest) || (dest && home && dest === home)) {
     return {
       domestic: true,
       rule: { months: 0, label: 'not needed for a domestic trip', source: 'domestic', from: 'departure' },

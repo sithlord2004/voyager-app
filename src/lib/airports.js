@@ -62,6 +62,35 @@ const CITY_IATA = {
   atlanta: 'ATL', honolulu: 'HNL', hanoi: 'HAN', 'ho chi minh': 'SGN', colombo: 'CMB', kathmandu: 'KTM'
 }
 
+// Which country each airport is in. Used to tell a domestic hop (MEL → HBA)
+// from an international one, without depending on any per-device setting.
+export const AIRPORT_COUNTRY = {
+  LHR:'GB', LGW:'GB', STN:'GB', LCY:'GB', MAN:'GB', EDI:'GB', BHX:'GB', GLA:'GB', LON:'GB',
+  DUB:'IE',
+  CDG:'FR', ORY:'FR', PAR:'FR', AMS:'NL', BRU:'BE',
+  FRA:'DE', MUC:'DE', BER:'DE', MAD:'ES', BCN:'ES', LIS:'PT',
+  FCO:'IT', MXP:'IT', ZRH:'CH', VIE:'AT', CPH:'DK', ARN:'SE', OSL:'NO', HEL:'FI',
+  IST:'TR', ATH:'GR', PRG:'CZ', WAW:'PL', MOW:'RU',
+  JFK:'US', EWR:'US', LGA:'US', NYC:'US', LAX:'US', SFO:'US', ORD:'US', MIA:'US',
+  BOS:'US', SEA:'US', DFW:'US', ATL:'US', DEN:'US', LAS:'US', IAD:'US', SAN:'US', HNL:'US',
+  YYZ:'CA', YVR:'CA', YYC:'CA', YUL:'CA', MEX:'MX', CUN:'MX',
+  GRU:'BR', GIG:'BR', EZE:'AR', SCL:'CL', LIM:'PE', BOG:'CO',
+  HND:'JP', NRT:'JP', TYO:'JP', KIX:'JP', ITM:'JP', OSA:'JP',
+  ICN:'KR', SEL:'KR', PEK:'CN', PVG:'CN', HKG:'HK', TPE:'TW', SIN:'SG',
+  BKK:'TH', KUL:'MY', CGK:'ID', DPS:'ID', MNL:'PH', DEL:'IN', BOM:'IN',
+  HAN:'VN', SGN:'VN', CMB:'LK', KTM:'NP',
+  DXB:'AE', AUH:'AE', DOH:'QA', TLV:'IL', CAI:'EG',
+  JNB:'ZA', CPT:'ZA', NBO:'KE', CMN:'MA', RAK:'MA',
+  SYD:'AU', MEL:'AU', BNE:'AU', PER:'AU', ADL:'AU', HBA:'AU', CBR:'AU',
+  OOL:'AU', CNS:'AU', DRW:'AU', LST:'AU',
+  AKL:'NZ', CHC:'NZ', WLG:'NZ', ZQN:'NZ', NAN:'FJ'
+}
+
+// Country for a leg endpoint, accepting a code or a city name ('' if unknown).
+export function airportCountry(s) {
+  return AIRPORT_COUNTRY[toCode(s)] || ''
+}
+
 // Normalise a leg endpoint to a short 3-letter code so flights read consistently
 // (MEL, HBA, LHR) whether the user typed a code, a city name, or something messy
 // like "Melbourne Airport" or "Melbourne (MEL)".
