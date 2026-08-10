@@ -39,8 +39,8 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
             <li><b>Save your documents</b> — passports and more, encrypted on your device.</li>
           </ol>
           <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 8, flexWrap: 'wrap' }}>
-            <button className="btn" onClick={() => setView?.('settings')}>👥 Add your family →</button>
-            <button className="btn ghost" onClick={() => setView?.('trips')}>✈️ Add a trip</button>
+            <button className="btn" onClick={() => setView?.('settings')}><Icon name="users" size={15} /> Add your family</button>
+            <button className="btn ghost" onClick={() => setView?.('trips')}><Icon name="plus" size={15} /> Add a trip</button>
           </div>
           <p className="desc" style={{ marginTop: 12, fontSize: 12 }}>Everything stays on your device, encrypted with your passphrase. Cloud sync is optional and off by default.</p>
         </div>

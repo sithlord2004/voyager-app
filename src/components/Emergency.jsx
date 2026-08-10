@@ -122,12 +122,12 @@ export default function Emergency({ trips = [] }) {
     <div>
       <div className="topbar"><div><h2><Icon name="lifebuoy" size={23} /> Emergency Card</h2>
         <div className="sub">Local numbers, nearby hospitals &amp; your embassy — for wherever you are</div></div>
-        <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => setShowMed(true)}>✚ Medical ID</button></div>
+        <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => setShowMed(true)}><Icon name="pulse" size={15} /> Medical ID</button></div>
 
       <div className="file-row" style={{ maxWidth: 620, marginBottom: 16 }}>
         <input value={dest} onChange={e => setDest(e.target.value)} placeholder="Destination city (e.g. Tokyo)"
           onKeyDown={e => e.key === 'Enter' && lookup(dest)} style={{ flex: 1 }} />
-        <button className="btn" onClick={() => lookup(dest)}>🔎 Look up</button>
+        <button className="btn" onClick={() => lookup(dest)}><Icon name="search" size={15} /> Look up</button>
       </div>
 
       <div className="card emg" style={{ marginBottom: 14 }}>
@@ -181,7 +181,7 @@ export default function Emergency({ trips = [] }) {
           </div>
         ))}
         {dest
-          ? <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('hospitals near ' + dest)}`} target="_blank" rel="noopener noreferrer">🗺️ Open hospitals near {dest} in Maps</a>
+          ? <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('hospitals near ' + dest)}`} target="_blank" rel="noopener noreferrer"><Icon name="pin" size={15} /> Open hospitals near {dest} in Maps</a>
           : <div className="desc">Enter a destination above to find nearby hospitals.</div>}
         <div className="desc" style={{ marginTop: 8 }}>In a real emergency, call the number above first.</div>
       </Collapsible>
@@ -240,7 +240,7 @@ function EditList({ icon, items, onChange, placeholder1, placeholder2 }) {
         <input value={a} onChange={e => setA(e.target.value)} placeholder={placeholder1} style={{ flex: 1, minWidth: 110 }} />
         <input value={b} onChange={e => setB(e.target.value)} placeholder={placeholder2}
           onKeyDown={e => e.key === 'Enter' && add()} style={{ flex: 1, minWidth: 110 }} />
-        <button className="btn" onClick={add}>＋</button>
+        <button className="btn" onClick={add}><Icon name="plus" size={16} /></button>
       </div>
     </>
   )

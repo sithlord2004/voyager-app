@@ -116,8 +116,8 @@ export default function Trips({ trips, documents, people = [], reload, hiddenTri
       <div className="topbar">
         <div><h2>Trips</h2><div className="sub">Everything for each journey in one place.</div></div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="btn ghost" onClick={() => setAdding(true)}>＋ Add manually</button>
-          <button className="btn" onClick={() => setImporting(true)}>📩 Import itinerary</button>
+          <button className="btn ghost" onClick={() => setAdding(true)}><Icon name="plus" size={15} /> Add manually</button>
+          <button className="btn" onClick={() => setImporting(true)}><Icon name="download" size={15} /> Import itinerary</button>
         </div>
       </div>
       {hiddenTripCount > 0 && (
@@ -248,7 +248,7 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
             </div>
           </div>
         ))}
-        <button className="btn ghost" onClick={addLeg} style={{ width: '100%' }}>＋ Add another leg</button>
+        <button className="btn ghost" onClick={addLeg} style={{ width: '100%' }}><Icon name="plus" size={15} /> Add another leg</button>
 
         <div style={{ fontSize: 12.5, color: 'var(--text-2)', margin: '16px 0 8px', fontWeight: 600 }}>Stays (hotels / Airbnb)</div>
         {stays.map((s, i) => (
@@ -270,11 +270,11 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
             <input value={s.ref} onChange={e => setStay(i, { ref: e.target.value })} placeholder="Confirmation # / address (optional)" style={fieldStyle} />
           </div>
         ))}
-        <button className="btn ghost" onClick={addStay} style={{ width: '100%' }}>＋ Add a stay</button>
+        <button className="btn ghost" onClick={addStay} style={{ width: '100%' }}><Icon name="plus" size={15} /> Add a stay</button>
 
         <div className="modal-actions">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn" onClick={save} disabled={busy || !city.trim() || !start}>{busy ? 'Saving…' : trip ? 'Save changes' : '＋ Create trip'}</button>
+          <button className="btn" onClick={save} disabled={busy || !city.trim() || !start}>{busy ? 'Saving…' : trip ? 'Save changes' : 'Create trip'}</button>
         </div>
       </div>
     </div>

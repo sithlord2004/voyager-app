@@ -152,7 +152,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
         <div className="seg">
           {['auto', 'light', 'dark'].map(t => (
             <button key={t} className={theme === t ? 'active' : ''} onClick={() => applyTheme(t)}>
-              {t === 'auto' ? '🌗 Auto' : t === 'light' ? '☀️ Light' : '🌙 Dark'}
+              {t === 'auto' ? 'Auto' : t === 'light' ? 'Light' : 'Dark'}
             </button>
           ))}
         </div>
@@ -185,7 +185,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
         <div className="file-row" style={{ marginTop: 6 }}>
           <input value={newPerson} onChange={e => setNewPerson(e.target.value)} placeholder="Add a person's name"
             onKeyDown={e => e.key === 'Enter' && addPerson()} style={{ flex: 1, minWidth: 160 }} />
-          <button className="btn" onClick={addPerson}>＋ Add</button>
+          <button className="btn" onClick={addPerson}><Icon name="plus" size={15} /> Add</button>
         </div>
       </div>
 
@@ -229,8 +229,8 @@ export default function Settings({ vaultKey, people = [], reload }) {
 
         <div className="modal-actions" style={{ marginTop: 8, flexWrap: 'wrap' }}>
           <button className="btn ghost" onClick={save}>Save</button>
-          <button className="btn" onClick={test} disabled={!cfg.enabled}>☁️ Sync now</button>
-          {canInvite && <button className="btn ghost" onClick={openInvite}>📲 Invite a device</button>}
+          <button className="btn" onClick={test} disabled={!cfg.enabled}><Icon name="cloud" size={15} /> Sync now</button>
+          {canInvite && <button className="btn ghost" onClick={openInvite}><Icon name="qr" size={15} /> Invite a device</button>}
         </div>
         {msg && <div className="desc" style={{ marginTop: 12 }}>{msg}</div>}
         {cfg.lastSync ? <div className="desc">Last sync: {new Date(cfg.lastSync).toLocaleString()}</div> : null}
@@ -240,7 +240,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
       {invite && (
         <div className="modal-backdrop" onClick={() => setInvite(null)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400, textAlign: 'center' }}>
-            <h3>📲 Invite a device</h3>
+            <h3>Invite a device</h3>
             <div className="seg" style={{ marginBottom: 12 }}>
               <button className={invite.mode === 'mine' ? 'active' : ''} onClick={() => switchInviteMode('mine')}>👨‍👩‍👧 My family</button>
               <button className={invite.mode === 'new' ? 'active' : ''} onClick={() => switchInviteMode('new')}>✨ New group</button>
@@ -262,7 +262,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
             {inviteQr && <img src={inviteQr} alt="Invite QR code" style={{ width: 220, height: 220, borderRadius: 12, background: '#fff', padding: 8 }} />}
 
             <div className="modal-actions" style={{ justifyContent: 'center', marginTop: 10 }}>
-              <button className="btn" onClick={copyInvite} disabled={!inviteUrl}>{copied ? '✅ Copied' : '🔗 Copy link'}</button>
+              <button className="btn" onClick={copyInvite} disabled={!inviteUrl}>{copied ? 'Copied ✓' : 'Copy link'}</button>
               <button className="btn ghost" onClick={() => setInvite(null)}>Done</button>
             </div>
             <p className="desc" style={{ marginTop: 10, fontSize: 11 }}>This link contains your sync secret — treat it like a password and don't post it publicly. To open shared documents, the other device also needs that group's passphrase (or a restored backup).</p>
@@ -274,8 +274,8 @@ export default function Settings({ vaultKey, people = [], reload }) {
         <h3><Icon name="download" /> Encrypted backup</h3>
         <p className="desc">Download an encrypted <code>.voyager</code> file with everything in your vault. Document blobs and metadata are encrypted — the file is useless without your passphrase or recovery code. Restore it on a new device or after a wipe.</p>
         <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
-          <button className="btn" onClick={doExport}>⬇️ Export backup</button>
-          <button className="btn ghost" onClick={() => fileRef.current?.click()}>⬆️ Restore backup</button>
+          <button className="btn" onClick={doExport}><Icon name="download" size={15} /> Export backup</button>
+          <button className="btn ghost" onClick={() => fileRef.current?.click()}><Icon name="upload" size={15} /> Restore backup</button>
           <input ref={fileRef} type="file" accept=".voyager,application/json" hidden
                  onChange={e => doImport(e.target.files[0])} />
         </div>
@@ -287,7 +287,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
         <p className="desc">Add a device passkey (Face ID, Touch ID, Windows Hello) for quick unlock. Your passphrase stays the master key; this is an extra, device-bound shortcut. Needs a supporting browser.</p>
         <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
           <button className="btn" onClick={togglePasskey} disabled={!passkeySupported()}>
-            {pkEnabled ? '🚫 Remove passkey' : '👤 Enable on this device'}
+            {pkEnabled ? 'Remove passkey' : 'Enable on this device'}
           </button>
           {!passkeySupported() && <span className="desc">Not available in this browser.</span>}
         </div>

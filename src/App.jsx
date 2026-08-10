@@ -160,7 +160,7 @@ export default function App() {
       {invite && (
         <div className="modal-backdrop" onClick={dismissInvite}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
-            <h3>📲 Join a shared family?</h3>
+            <h3>Join a shared family?</h3>
             <p className="desc">This invite will connect this device to a shared Cloud sync so you see the same trips and documents.</p>
             <div className="desc" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
               <div><b>Family</b> · {invite.familyId || '—'}</div>

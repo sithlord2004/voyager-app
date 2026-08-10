@@ -159,8 +159,8 @@ export default function Vault({ vaultKey, documents, people, reload }) {
       <div className="topbar">
         <div><h2><Icon name="shield" size={23} /> Document Vault</h2><div className="sub">End-to-end encrypted (AES-256) · stored on this device</div></div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
-          {syncOn && <button className="btn ghost" onClick={handleSync}>☁️ Sync now</button>}
-          <button className="btn" onClick={() => setAdding(true)}>＋ Add document</button>
+          {syncOn && <button className="btn ghost" onClick={handleSync}><Icon name="cloud" size={15} /> Sync now</button>}
+          <button className="btn" onClick={() => setAdding(true)}><Icon name="plus" size={15} /> Add document</button>
         </div>
       </div>
 
@@ -202,7 +202,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
               : <iframe src={viewer.url} title={viewer.name}
                   style={{ width: '86vw', maxWidth: 760, height: '78vh', border: 'none', borderRadius: 10, background: '#fff' }} />}
             <div className="modal-actions" style={{ justifyContent: 'center', marginTop: 14 }}>
-              <a className="btn ghost" href={viewer.url} download={viewer.name}>⬇️ Download</a>
+              <a className="btn ghost" href={viewer.url} download={viewer.name}><Icon name="download" size={15} /> Download</a>
               <button className="btn" onClick={closeViewer}>Close</button>
             </div>
           </div>

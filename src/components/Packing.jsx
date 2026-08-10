@@ -102,7 +102,7 @@ export default function Packing({ trips = [], packing = [], reload }) {
             {trips.length > 0 && <optgroup label="Trips">{trips.map(t => <option key={t.id} value={t.id}>{t.destinationCity}</option>)}</optgroup>}
             {lists.length > 0 && <optgroup label="My lists">{lists.map(l => <option key={l.id} value={l.id}>⭐ {l.name}</option>)}</optgroup>}
           </select>
-          <button className="btn ghost" onClick={newList}>＋ List</button>
+          <button className="btn ghost" onClick={newList}><Icon name="plus" size={15} /> List</button>
         </div>
       </div>
 
@@ -125,7 +125,7 @@ export default function Packing({ trips = [], packing = [], reload }) {
           <select value={cat} onChange={e => setCat(e.target.value)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '9px 10px', color: 'var(--text)' }}>
             {CATEGORIES.map(c => <option key={c}>{c}</option>)}
           </select>
-          <button className="btn" onClick={addItem} disabled={!activeId}>＋</button>
+          <button className="btn" onClick={addItem} disabled={!activeId}><Icon name="plus" size={16} /></button>
         </div>
       </div>
 
