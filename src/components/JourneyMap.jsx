@@ -28,9 +28,15 @@ function arc(a, b, n = 48) {
   return out
 }
 
-const pin = (emoji, color) => L.divIcon({
+const SVG = p => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`
+const PINS = {
+  plane: SVG('<path d="M21 15.5 3 10.2v-2l7 1.4 2.6-5.1 1.9.5-1 5.2 4.6.9.8-2.5 1.6.4-.6 3.4Z"/>'),
+  place: SVG('<path d="M20 10.5c0 6-8 11.5-8 11.5S4 16.5 4 10.5a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10.3" r="2.6"/>'),
+  stay: SVG('<path d="M4 21h16M6 21V9l6-4 6 4v12M10 21v-4h4v4"/>')
+}
+const pin = (type, color) => L.divIcon({
   className: 'jm-pin',
-  html: `<span style="background:${color}">${emoji}</span>`,
+  html: `<span style="background:${color}">${PINS[type] || ''}</span>`,
   iconSize: [30, 30], iconAnchor: [15, 15]
 })
 
@@ -60,13 +66,13 @@ export default function JourneyMap({ trip, onClose }) {
       for (let i = 0; i < pts.length - 1; i++) {
         L.polyline(arc(pts[i].coord, pts[i + 1].coord), { color: '#3b82f6', weight: 3, opacity: 0.9, dashArray: '1 0' }).addTo(map)
       }
-      pts.forEach(p => { L.marker(p.coord, { icon: pin('✈️', '#0b2545') }).addTo(map).bindPopup(p.label); all.push(p.coord) })
-      if (dest) { L.marker(dest.coord, { icon: pin('📍', '#dc2626') }).addTo(map).bindPopup(dest.label); all.push(dest.coord) }
+      pts.forEach(p => { L.marker(p.coord, { icon: pin('plane', '#0b2545') }).addTo(map).bindPopup(p.label); all.push(p.coord) })
+      if (dest) { L.marker(dest.coord, { icon: pin('place', '#dc2626') }).addTo(map).bindPopup(dest.label); all.push(dest.coord) }
 
       for (const s of (trip.stays || [])) {
         try {
           const p = await geocode(`${s.name}, ${trip.destinationCity}`)
-          if (p) { const c = [p.latitude, p.longitude]; L.marker(c, { icon: pin(s.kind === 'airbnb' ? '🏠' : '🏨', '#0ea5e9') }).addTo(map).bindPopup(s.name); all.push(c) }
+          if (p) { const c = [p.latitude, p.longitude]; L.marker(c, { icon: pin('stay', '#0ea5e9') }).addTo(map).bindPopup(s.name); all.push(c) }
         } catch { /* skip unresolved stays */ }
       }
 

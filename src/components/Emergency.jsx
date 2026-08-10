@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { getSetting, setSetting } from '../lib/db.js'
 import { geocode } from '../lib/weather.js'
 import { Icon } from './Icon.jsx'
-import MedicalCard from './MedicalCard.jsx'
 import Collapsible from './Collapsible.jsx'
 import { getAdvisory } from '../lib/advisory.js'
 
@@ -80,13 +79,10 @@ export default function Emergency({ trips = [] }) {
   const [hLoading, setHLoading] = useState(false)
   const [home, setHome] = useState('GB')
   const [contacts, setContacts] = useState([])
-  const [medical, setMedical] = useState([])
-  const [showMed, setShowMed] = useState(false)
   const [advisory, setAdvisory] = useState(null)
 
   useEffect(() => {
     getSetting('emergencyContacts').then(c => setContacts(c || []))
-    getSetting('medicalNotes').then(m => setMedical(m || []))
     getSetting('homeCountry').then(h => setHome(h || 'GB'))
     if (dest) lookup(dest)
   }, []) // eslint-disable-line
@@ -113,7 +109,6 @@ export default function Emergency({ trips = [] }) {
   }
   async function changeHome(v) { setHome(v); await setSetting('homeCountry', v) }
   async function saveContacts(list) { setContacts(list); await setSetting('emergencyContacts', list) }
-  async function saveMedical(list) { setMedical(list); await setSetting('medicalNotes', list) }
 
   const local = NUMBERS[cc]
   const emb = EMBASSY[home]
@@ -121,8 +116,7 @@ export default function Emergency({ trips = [] }) {
   return (
     <div>
       <div className="topbar"><div><h2><Icon name="lifebuoy" size={23} /> Emergency Card</h2>
-        <div className="sub">Local numbers, nearby hospitals &amp; your embassy — for wherever you are</div></div>
-        <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => setShowMed(true)}><Icon name="pulse" size={15} /> Medical ID</button></div>
+        <div className="sub">Local numbers, nearby hospitals &amp; your embassy — for wherever you are</div></div></div>
 
       <div className="file-row" style={{ maxWidth: 620, marginBottom: 16 }}>
         <input value={dest} onChange={e => setDest(e.target.value)} placeholder="Destination city (e.g. Tokyo)"
@@ -203,16 +197,10 @@ export default function Emergency({ trips = [] }) {
       </Collapsible>
 
       <Collapsible id="emg-contacts" icon="phone" title="Emergency contacts" badge={contacts.length || null}>
-        <EditList items={contacts} onChange={saveContacts} icon="📞"
+        <EditList items={contacts} onChange={saveContacts} icon={<Icon name="phone" size={16} />}
           placeholder1="Name (e.g. Mum)" placeholder2="Phone / detail" />
       </Collapsible>
 
-      <Collapsible id="emg-medical" icon="pulse" title="Medical notes" badge={medical.length || null}>
-        <EditList items={medical} onChange={saveMedical} icon="🩺"
-          placeholder1="Who (e.g. Aria)" placeholder2="Detail (e.g. Allergy: peanuts)" />
-      </Collapsible>
-
-      {showMed && <MedicalCard contacts={contacts} medical={medical} onClose={() => setShowMed(false)} />}
     </div>
   )
 }

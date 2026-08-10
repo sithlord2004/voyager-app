@@ -12,8 +12,7 @@ import JourneyMap from './JourneyMap.jsx'
 const legEndpoint = (v, mode) => mode === 'flight' ? (toCode(v) || '?') : (v || '?')
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const MODES = [['flight', '✈️', 'Flight'], ['train', '🚆', 'Train'], ['car', '🚗', 'Car/Drive'], ['ferry', '⛴️', 'Ferry'], ['bus', '🚌', 'Bus']]
-const modeIcon = m => (MODES.find(x => x[0] === m) || ['', '✈️'])[1]
+const MODES = [['flight', 'Flight'], ['train', 'Train'], ['car', 'Car/Drive'], ['ferry', 'Ferry'], ['bus', 'Bus']]
 
 // A live-status / live-departures link for legs that support it (flights & trains).
 function liveUrl(l) {
@@ -54,7 +53,7 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap }) {
   const cd = du < 0 ? 'past' : du === 0 ? 'today' : `in ${du} days`
   const ic = w ? (WMO[w.code] || ['', ''])[0] : ''
   const legs = tripLegs(trip)
-  const legsLine = legs.map(l => `${legEndpoint(l.from, l.mode)} ${modeIcon(l.mode)} ${legEndpoint(l.to, l.mode)}${l.number ? ' ' + l.number : ''}${l.seat ? ' · ' + l.seat : ''}`).join('   ·   ')
+  const legsLine = legs.map(l => `${legEndpoint(l.from, l.mode)} → ${legEndpoint(l.to, l.mode)}${l.number ? ' ' + l.number : ''}${l.seat ? ' · ' + l.seat : ''}`).join('   ·   ')
   const liveLegs = legs.filter(l => liveUrl(l))
   const stays = trip.stays || []
   const staysLine = stays.map(s => `${s.kind === 'airbnb' ? '🏠' : '🏨'} ${s.name}${s.checkIn ? ' · ' + s.checkIn : ''}`).join('   ·   ')
@@ -70,7 +69,7 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap }) {
           <div className="leg-live">
             {liveLegs.map((l, i) => (
               <a key={i} className="mini" href={liveUrl(l)} target="_blank" rel="noopener noreferrer">
-                {modeIcon(l.mode)} {l.number || (l.mode === 'flight' ? 'flight' : 'train')} · live
+                {l.number || (l.mode === 'flight' ? 'Flight' : 'Train')} · live
               </a>
             ))}
           </div>
@@ -229,7 +228,7 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input type="date" value={l.date} onChange={e => setLeg(i, { date: e.target.value })} style={{ ...fieldStyle, flex: '1 1 132px', minWidth: 120 }} />
               <select value={l.mode} onChange={e => setLeg(i, { mode: e.target.value })} style={{ ...fieldStyle, flex: '2 1 150px', minWidth: 0 }}>
-                {MODES.map(([v, ic, label]) => <option key={v} value={v}>{ic} {label}</option>)}
+                {MODES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
               </select>
               {legs.length > 1 && <button onClick={() => removeLeg(i)} title="Remove leg"
                 style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 16 }}>✕</button>}
@@ -356,7 +355,7 @@ function ImportModal({ onClose, onSeed }) {
                   <div style={{ marginTop: 4, display: 'grid', gap: 3 }}>
                     {legs.map((l, i) => (
                       <div key={i} style={{ opacity: .95 }}>
-                        {modeIcon(l.mode)} {(l.from || '?')} → {(l.to || '?')}{l.number ? ' · ' + l.number : ''}{l.date ? ' · ' + l.date : ''}
+                        {(l.from || '?')} → {(l.to || '?')}{l.number ? ' · ' + l.number : ''}{l.date ? ' · ' + l.date : ''}
                       </div>
                     ))}
                   </div>

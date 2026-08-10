@@ -8,10 +8,10 @@ import Collapsible from './Collapsible.jsx'
 
 const TYPES =['Passport', 'Visa', 'Driving licence', 'Travel insurance', 'Vaccination record', 'Booking', 'Flight ticket', 'Other']
 const ICONS = {
-  'Passport': ['🛂', 'rgba(59,130,246,.15)'], 'Visa': ['📄', 'rgba(6,182,212,.15)'],
-  'Driving licence': ['🪪', 'rgba(139,92,246,.15)'], 'Travel insurance': ['🛡️', 'rgba(34,197,94,.15)'],
-  'Vaccination record': ['💉', 'rgba(239,68,68,.15)'], 'Booking': ['🏨', 'rgba(245,158,11,.15)'],
-  'Flight ticket': ['🎫', 'rgba(59,130,246,.15)'], 'Other': ['📄', 'rgba(148,163,184,.15)']
+  'Passport': ['idcard', 'rgba(59,130,246,.15)'], 'Visa': ['doc', 'rgba(6,182,212,.15)'],
+  'Driving licence': ['idcard', 'rgba(139,92,246,.15)'], 'Travel insurance': ['shield', 'rgba(34,197,94,.15)'],
+  'Vaccination record': ['pulse', 'rgba(239,68,68,.15)'], 'Booking': ['building', 'rgba(245,158,11,.15)'],
+  'Flight ticket': ['ticket', 'rgba(59,130,246,.15)'], 'Other': ['doc', 'rgba(148,163,184,.15)']
 }
 function expState(d) {
   if (!d.expiryDate) return ['ok', 'Up to date']
@@ -72,10 +72,10 @@ function DocCard({ doc, vaultKey, ownerName, onView, onDelete }) {
   const [state, label] = expState(doc)
   return (
     <div className="doc">
-      <span className="lock">{doc.blob ? '🔒 Encrypted' : '➕ Empty'}</span>
+      <span className="lock">{doc.blob ? 'Encrypted' : 'Empty'}</span>
       {thumb
         ? <div className="thumb" style={{ backgroundImage: `url(${thumb})` }} />
-        : <div className="dtype" style={{ background: bg }}>{icon}</div>}
+        : <div className="dtype" style={{ background: bg }}><Icon name={icon} size={21} /></div>}
       <b>{doc.title}</b>
       <div className="owner">{ownerName(doc.personId)} · {doc.type}</div>
       <div className="exp"><span>Expiry</span><span className={'v exp-' + state}>{label}</span></div>
