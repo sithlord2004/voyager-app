@@ -6,6 +6,7 @@ import { db, getSetting, setSetting, createPerson, deletePerson } from '../lib/d
 import { makeInviteUrl } from '../lib/invite.js'
 import QRCode from 'qrcode'
 import { Icon } from './Icon.jsx'
+import ModalPortal from './ModalPortal.jsx'
 
 const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
 const makeInitials = n => (n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?'
@@ -258,7 +259,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
       </div>
 
       {invite && (
-        <div className="modal-backdrop" onClick={() => setInvite(null)}>
+        <ModalPortal><div className="modal-backdrop" onClick={() => setInvite(null)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400, textAlign: 'center' }}>
             <h3>Invite a device</h3>
             <div className="seg" style={{ marginBottom: 12 }}>
@@ -287,7 +288,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
             </div>
             <p className="desc" style={{ marginTop: 10, fontSize: 11 }}>This link contains your sync secret — treat it like a password and don't post it publicly. To open shared documents, the other device also needs that group's passphrase (or a restored backup).</p>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>

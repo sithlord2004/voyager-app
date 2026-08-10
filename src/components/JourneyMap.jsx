@@ -3,6 +3,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { geocode } from '../lib/weather.js'
 import { AIRPORTS } from '../lib/airports.js'
+import ModalPortal from './ModalPortal.jsx'
 
 function legsOf(trip) {
   if (trip.legs?.length) return trip.legs
@@ -87,7 +88,7 @@ export default function JourneyMap({ trip, onClose }) {
   }, []) // eslint-disable-line
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <ModalPortal><div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 640, width: '92vw' }}>
         <h3>🗺️ {trip.destinationCity} · journey</h3>
         <div className="journey-map" ref={elRef} />
@@ -96,6 +97,6 @@ export default function JourneyMap({ trip, onClose }) {
           <button className="btn" onClick={onClose}>Close</button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   )
 }

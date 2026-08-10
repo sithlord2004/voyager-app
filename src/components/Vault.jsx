@@ -7,6 +7,7 @@ import { Icon } from './Icon.jsx'
 import Collapsible from './Collapsible.jsx'
 import { PROFILE_FIELDS, emptyProfile, loadProfile, saveProfile, hasProfile } from '../lib/profile.js'
 import { COUNTRIES } from '../lib/nationality.js'
+import ModalPortal from './ModalPortal.jsx'
 
 const TYPES =['Passport', 'Visa', 'Driving licence', 'Travel insurance', 'Vaccination record', 'Booking', 'Flight ticket', 'Other']
 const ICONS = {
@@ -298,7 +299,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
         onSaved={() => { setProfileFor(null); flash('Profile encrypted & saved') }} />}
 
       {viewer && (
-        <div className="modal-backdrop" onClick={closeViewer}>
+        <ModalPortal><div className="modal-backdrop" onClick={closeViewer}>
           <div className="modal viewer" onClick={e => e.stopPropagation()}>
             {/* Sticky bar: a PDF iframe captures scrolling, so the close control
                 has to stay visible rather than sitting below the document. */}
@@ -318,7 +319,7 @@ export default function Vault({ vaultKey, documents, people, reload }) {
               <button className="btn" onClick={closeViewer}>Close</button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {msg && <div className="toast show">{msg}</div>}
@@ -350,7 +351,7 @@ function ProfileModal({ person, vaultKey, onClose, onSaved }) {
   const isSecret = k => k === 'passportNumber'
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <ModalPortal><div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h3>{person.name}'s travel profile</h3>
         {loading ? <p className="desc">Decrypting…</p> : (
@@ -379,7 +380,7 @@ function ProfileModal({ person, vaultKey, onClose, onSaved }) {
           <button className="btn" onClick={save} disabled={loading || busy}>{busy ? 'Saving…' : 'Save profile'}</button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   )
 }
 
@@ -429,7 +430,7 @@ function AddDocModal({ people, vaultKey, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <ModalPortal><div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h3>Add document</h3>
         <label>Owner
@@ -471,6 +472,6 @@ function AddDocModal({ people, vaultKey, onClose, onSaved }) {
           <button className="btn" onClick={save} disabled={busy}>{busy ? 'Encrypting…' : '🔒 Encrypt & save'}</button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   )
 }

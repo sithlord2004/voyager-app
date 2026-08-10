@@ -12,6 +12,7 @@ import Emergency from './components/Emergency.jsx'
 import Settings from './components/Settings.jsx'
 import Help from './components/Help.jsx'
 import { versionLabel } from './lib/version.js'
+import ModalPortal from './components/ModalPortal.jsx'
 
 export default function App() {
   const [vaultKey, setVaultKey] = useState(null)   // in-memory only; null = locked
@@ -177,22 +178,24 @@ export default function App() {
       </main>
 
       {invite && (
-        <div className="modal-backdrop" onClick={dismissInvite}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
-            <h3>Join a shared family?</h3>
-            <p className="desc">This invite will connect this device to a shared Cloud sync so you see the same trips and documents.</p>
-            <div className="desc" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
-              <div><b>Family</b> · {invite.familyId || '—'}</div>
-              <div style={{ wordBreak: 'break-all' }}><b>Server</b> · {invite.endpoint}</div>
-            </div>
-            <p className="desc" style={{ fontSize: 11.5, marginTop: 8 }}>Only accept invites from someone you trust. To open shared documents you'll also need their passphrase (or a restored backup).</p>
-            {joining && <div className="desc">{joining}</div>}
-            <div className="modal-actions">
-              <button className="btn ghost" onClick={dismissInvite} disabled={!!joining && joining === 'Joining…'}>Not now</button>
-              <button className="btn" onClick={acceptInvite} disabled={joining === 'Joining…'}>{joining === 'Joining…' ? 'Joining…' : 'Join family'}</button>
+        <ModalPortal>
+          <div className="modal-backdrop" onClick={dismissInvite}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+              <h3>Join a shared family?</h3>
+              <p className="desc">This invite will connect this device to a shared Cloud sync so you see the same trips and documents.</p>
+              <div className="desc" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
+                <div><b>Family</b> · {invite.familyId || '—'}</div>
+                <div style={{ wordBreak: 'break-all' }}><b>Server</b> · {invite.endpoint}</div>
+              </div>
+              <p className="desc" style={{ fontSize: 11.5, marginTop: 8 }}>Only accept invites from someone you trust. To open shared documents you'll also need their passphrase (or a restored backup).</p>
+              {joining && <div className="desc">{joining}</div>}
+              <div className="modal-actions">
+                <button className="btn ghost" onClick={dismissInvite} disabled={!!joining && joining === 'Joining…'}>Not now</button>
+                <button className="btn" onClick={acceptInvite} disabled={joining === 'Joining…'}>{joining === 'Joining…' ? 'Joining…' : 'Join family'}</button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   )

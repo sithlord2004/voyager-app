@@ -7,6 +7,7 @@ import { toCode } from '../lib/airports.js'
 import { Icon } from './Icon.jsx'
 import Postcard from './Postcard.jsx'
 import JourneyMap from './JourneyMap.jsx'
+import ModalPortal from './ModalPortal.jsx'
 
 // Display an endpoint consistently: flights as 3-letter codes, other modes as typed.
 const legEndpoint = (v, mode) => mode === 'flight' ? (toCode(v) || '?') : (v || '?')
@@ -113,7 +114,7 @@ export default function Trips({ trips, documents, people = [], reload, hiddenTri
   return (
     <div>
       <div className="topbar">
-        <div><h2>Trips</h2><div className="sub">Everything for each journey in one place.</div></div>
+        <div><h2><Icon name="map" size={23} /> Trips</h2><div className="sub">Everything for each journey in one place.</div></div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn ghost" onClick={() => setAdding(true)}><Icon name="plus" size={15} /> Add manually</button>
           <button className="btn" onClick={() => setImporting(true)}><Icon name="download" size={15} /> Import itinerary</button>
@@ -191,7 +192,7 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
   const fieldStyle = { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', color: 'var(--text)', fontSize: 14, minHeight: 40 }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <ModalPortal><div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <h3>{trip ? 'Edit trip' : seed ? 'Review imported trip' : 'Add a trip'}</h3>
         {seed && <p className="desc" style={{ marginTop: -4 }}>Pulled from your booking — check each leg, then save.</p>}
@@ -276,7 +277,7 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
           <button className="btn" onClick={save} disabled={busy || !city.trim() || !start}>{busy ? 'Saving…' : trip ? 'Save changes' : 'Create trip'}</button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   )
 }
 
@@ -323,7 +324,7 @@ function ImportModal({ onClose, onSeed }) {
 
   const c = draft?.confidence
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <ModalPortal><div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h3>Import itinerary</h3>
         {!draft ? (
@@ -372,6 +373,6 @@ function ImportModal({ onClose, onSeed }) {
           </>
         )}
       </div>
-    </div>
+    </div></ModalPortal>
   )
 }
