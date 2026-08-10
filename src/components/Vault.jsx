@@ -299,14 +299,22 @@ export default function Vault({ vaultKey, documents, people, reload }) {
 
       {viewer && (
         <div className="modal-backdrop" onClick={closeViewer}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '94vw', width: 'auto', textAlign: 'center' }}>
+          <div className="modal viewer" onClick={e => e.stopPropagation()}>
+            {/* Sticky bar: a PDF iframe captures scrolling, so the close control
+                has to stay visible rather than sitting below the document. */}
+            <div className="viewer-bar">
+              <span className="viewer-name">{viewer.name}</span>
+              <a className="icon-btn" href={viewer.url} download={viewer.name} title="Download">
+                <Icon name="download" size={19} />
+              </a>
+              <button className="icon-btn" onClick={closeViewer} title="Close" aria-label="Close">
+                <Icon name="x" size={20} />
+              </button>
+            </div>
             {viewer.mime.startsWith('image/')
-              ? <img src={viewer.url} alt={viewer.name}
-                  style={{ maxWidth: '100%', maxHeight: '78vh', borderRadius: 10, display: 'block', margin: '0 auto' }} />
-              : <iframe src={viewer.url} title={viewer.name}
-                  style={{ width: '86vw', maxWidth: 760, height: '78vh', border: 'none', borderRadius: 10, background: '#fff' }} />}
-            <div className="modal-actions" style={{ justifyContent: 'center', marginTop: 14 }}>
-              <a className="btn ghost" href={viewer.url} download={viewer.name}><Icon name="download" size={15} /> Download</a>
+              ? <img className="viewer-media" src={viewer.url} alt={viewer.name} />
+              : <iframe className="viewer-media" src={viewer.url} title={viewer.name} />}
+            <div className="modal-actions" style={{ justifyContent: 'center', marginTop: 12 }}>
               <button className="btn" onClick={closeViewer}>Close</button>
             </div>
           </div>

@@ -356,6 +356,22 @@ input{font-family:inherit}
 .btn.ghost:hover{background:var(--surface-2);filter:none;color:var(--text)}
 .mini.muted{color:var(--text-3);cursor:default}
 
+/* Document viewer (image / PDF) */
+.modal.viewer{max-width:min(860px,94vw);width:100%;text-align:center;display:flex;flex-direction:column}
+.viewer-bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:6px;
+  background:var(--surface);padding:2px 0 10px;margin-bottom:2px;border-bottom:1px solid var(--border-soft)}
+.viewer-name{flex:1;min-width:0;text-align:left;font-size:13.5px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.viewer-bar .icon-btn{width:40px;height:40px;flex-shrink:0}
+.viewer-media{display:block;width:100%;margin:10px auto 0;border:none;border-radius:10px;background:#fff}
+img.viewer-media{width:auto;max-width:100%;max-height:70vh;object-fit:contain;background:none}
+iframe.viewer-media{height:70vh}
+@media(max-width:600px){
+  .modal.viewer{max-width:none;width:100%}
+  iframe.viewer-media{height:calc(100dvh - 210px)}
+  img.viewer-media{max-height:calc(100dvh - 210px)}
+}
+
 /* Thumbnails */
 .doc .thumb{width:100%;height:96px;border-radius:11px;background-size:cover;background-position:center;margin-bottom:11px;border:1px solid var(--border)}
 
