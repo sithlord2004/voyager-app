@@ -188,7 +188,10 @@ export default function Vault({ vaultKey, documents, people, reload }) {
   // Soft-delete: mark removed + dirty so it also clears from synced devices.
   // (No window.confirm — it's blocked in installed PWAs; the button two-taps instead.)
   async function onDelete(doc) {
-    await db.documents.update(doc.id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
+    // Clear the encrypted file as well as flagging it deleted: the tombstone is
+    // all that needs to sync, and a large payload would stop the deletion from
+    // uploading at all.
+    await db.documents.update(doc.id, { deleted: 1, blob: null, thumb: null, dirty: 1, updatedAt: Date.now() })
     if (syncOn) { try { await syncNow() } catch {} }
     flash('🗑 Deleted')
   }

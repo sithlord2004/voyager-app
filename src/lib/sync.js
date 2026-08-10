@@ -84,7 +84,20 @@ export async function syncNow() {
 
   // 2) Upload local dirty records, table by table, in size-capped batches.
   async function pushTable(table) {
-    const dirty = await db[table].where('dirty').equals(1).toArray()
+    const raw = await db[table].where('dirty').equals(1).toArray()
+    // A deleted record only needs to be a tombstone. Keeping its (possibly huge)
+    // encrypted file meant a big deleted document could be too large to upload —
+    // blocking its own deletion forever. Drop the payload here: the removal then
+    // syncs normally, and the space is reclaimed on this device too.
+    const dirty = []
+    for (const rec of raw) {
+      if (rec.deleted && (rec.blob || rec.thumb)) {
+        await db[table].update(rec.id, { blob: null, thumb: null })
+        dirty.push({ ...rec, blob: null, thumb: null })
+      } else {
+        dirty.push(rec)
+      }
+    }
     let batch = [], bytes = 0
     async function flush() {
       if (!batch.length) return
@@ -102,6 +115,8 @@ export async function syncNow() {
       // Too big to ever upload as one request — skip it and say so, rather than
       // silently failing on every future sync.
       if (sz > MAX_RECORD_BYTES) {
+        // (Deleted records are slimmed to tombstones above, so anything still
+        // oversized here is a live document the user can actually act on.)
         oversized.push({
           table, id: rec.id,
           title: rec.title || rec.type || rec.id,
