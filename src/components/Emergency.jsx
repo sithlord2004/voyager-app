@@ -48,7 +48,7 @@ const NUMBERS = {
 }
 
 // Official embassy/consulate locators by the traveller's HOME country.
-const EMBASSY = {
+export const EMBASSY = {
   GB: { name: 'United Kingdom', url: 'https://www.gov.uk/world/embassies' },
   US: { name: 'United States', url: 'https://www.usembassy.gov/' },
   AU: { name: 'Australia', url: 'https://www.dfat.gov.au/about-us/our-locations/missions' },
@@ -108,7 +108,6 @@ export default function Emergency({ trips = [] }) {
     catch { setHospitals([]) }
     setHLoading(false)
   }
-  async function changeHome(v) { setHome(v); await setSetting('homeCountry', v) }
   async function saveContacts(list) { setContacts(list); await setSetting('emergencyContacts', list) }
 
   const local = NUMBERS[cc]
@@ -196,14 +195,10 @@ export default function Emergency({ trips = [] }) {
       </Collapsible>
 
       <Collapsible id="emg-embassy" icon="building" title="Your embassy">
-        <label className="switch-row" style={{ maxWidth: 360 }}>
-          <span>Your home country</span>
-          <select value={home} onChange={e => changeHome(e.target.value)}
-            style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 8px', color: 'var(--text)' }}>
-            {Object.entries(EMBASSY).map(([code, v]) => <option key={code} value={code}>{v.name}</option>)}
-          </select>
-        </label>
-        <p className="desc">Find the nearest {emb?.name} embassy/consulate{countryName ? ` in ${countryName}` : dest ? ` in ${dest}` : ''}.</p>
+        <p className="desc">
+          Find the nearest {emb?.name} embassy/consulate{countryName ? ` in ${countryName}` : dest ? ` in ${dest}` : ''}.
+          {' '}Not your country? Change it in <b>Settings → Who are you on this device?</b>
+        </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <a className="btn" target="_blank" rel="noopener noreferrer"
             href={`https://www.google.com/search?q=${encodeURIComponent((emb?.name || '') + ' embassy in ' + (countryName || dest || ''))}`}>🔎 Find embassy →</a>

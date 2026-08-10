@@ -7,6 +7,7 @@ import { makeInviteUrl } from '../lib/invite.js'
 import QRCode from 'qrcode'
 import { Icon } from './Icon.jsx'
 import ModalPortal from './ModalPortal.jsx'
+import { EMBASSY } from './Emergency.jsx'
 
 const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
 const makeInitials = n => (n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?'
@@ -26,6 +27,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
   const [fontScale, setFontScale] = useState(1)
   const [meId, setMeId] = useState('')
   const [showAll, setShowAll] = useState(false)
+  const [home, setHome] = useState('GB')
   const [invite, setInvite] = useState(null)   // { mode: 'mine' | 'new' } when the modal is open
   const [newFam, setNewFam] = useState('')
   const [inviteUrl, setInviteUrl] = useState('')
@@ -39,6 +41,13 @@ export default function Settings({ vaultKey, people = [], reload }) {
   useEffect(() => { getSetting('fontScale').then(v => setFontScale(v || 1)) }, [])
   useEffect(() => { getSetting('myPersonId').then(v => setMeId(v || '')) }, [])
   useEffect(() => { getSetting('showAllTrips').then(v => setShowAll(!!v)) }, [])
+  useEffect(() => { getSetting('homeCountry').then(h => setHome(h || 'GB')) }, [])
+
+  async function changeHome(v) {
+    setHome(v)
+    await setSetting('homeCountry', v)
+    reload?.()
+  }
 
   async function chooseMe(id) {
     setMeId(id)
@@ -224,6 +233,15 @@ export default function Settings({ vaultKey, people = [], reload }) {
           <input type="checkbox" checked={showAll} onChange={e => toggleShowAll(e.target.checked)} disabled={!meId} />
         </label>
         <p className="desc" style={{ marginTop: 4, fontSize: 11.5 }}>Trips with no travellers assigned always show for everyone.</p>
+
+        <label style={{ marginTop: 14 }}>Home country
+          <select value={home} onChange={e => changeHome(e.target.value)}>
+            {Object.entries(EMBASSY).map(([code, v]) => <option key={code} value={code}>{v.name}</option>)}
+          </select>
+        </label>
+        <p className="desc" style={{ marginTop: -6, fontSize: 11.5 }}>
+          Where you live. Used to find your embassy abroad, and to recognise trips inside your own country.
+        </p>
       </div>
 
       <div className="card" style={{ maxWidth: 620 }}>
