@@ -40,6 +40,24 @@ export default function App() {
     getSetting('fontScale').then(v => { if (v) document.documentElement.style.setProperty('--fs', String(v)) })
   }, [])
 
+  // Keep the iOS status-bar colour in sync with the *app's* resolved theme
+  // (not just the system), and update live when the theme is toggled.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (!meta) return
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => {
+      const t = document.documentElement.getAttribute('data-theme') || 'auto'
+      const dark = t === 'dark' || (t === 'auto' && mq.matches)
+      meta.setAttribute('content', dark ? '#0e131b' : '#ffffff')
+    }
+    apply()
+    const mo = new MutationObserver(apply)
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    mq.addEventListener?.('change', apply)
+    return () => { mo.disconnect(); mq.removeEventListener?.('change', apply) }
+  }, [])
+
   const reload = useCallback(async () => {
     const [people, trips, documents, packing, myPersonId, showAllTrips] = await Promise.all([
       db.people.toArray(), db.trips.toArray(), db.documents.toArray(), db.packing.toArray(),
