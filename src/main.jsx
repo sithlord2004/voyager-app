@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import { initClearableInputs } from './lib/clearableInputs.js'
+import { initServiceWorkerUpdates } from './lib/swUpdate.js'
 import './styles.css'
 
 createRoot(document.getElementById('root')).render(
@@ -11,3 +12,4 @@ createRoot(document.getElementById('root')).render(
 )
 
 initClearableInputs()
+initServiceWorkerUpdates()

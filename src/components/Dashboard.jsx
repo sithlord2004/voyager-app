@@ -225,6 +225,44 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
           ) : <div className="desc">Add a trip to see how ready you are.</div>}
         </div>
 
+        {next && flightLegs.length > 0 && (
+          <div className="fl-section">
+            <h3 className="sec-h"><Icon name="plane" /> Upcoming flights</h3>
+            {flightLegs.map((l, i) => {
+              const s = statuses[l.number + '_' + (l.date || next.startDate)]
+              const [cls, label] = s ? statusChip(s.status) : ['st-ontime', 'scheduled']
+              const dep = s?.departure, arr = s?.arrival
+              const depTime = dep?.revised?.slice(11, 16) || dep?.scheduled?.slice(11, 16) || ''
+              const arrTime = arr?.revised?.slice(11, 16) || arr?.scheduled?.slice(11, 16) || ''
+              const depGate = [dep?.terminal && `Terminal ${dep.terminal}`, dep?.gate && `Gate ${dep.gate}`].filter(Boolean).join(' · ')
+              const arrGate = [arr?.terminal && `Terminal ${arr.terminal}`, arr?.gate && `Gate ${arr.gate}`, arr?.baggageBelt && `Belt ${arr.baggageBelt}`].filter(Boolean).join(' · ')
+              return (
+                <div className="card" key={i}>
+                  <div className="fl-top">
+                    <span className="fl-no"><Icon name="plane" size={15} /> {l.number}{s?.airline ? ' · ' + s.airline : ''}</span>
+                    <span className={'status-chip ' + cls}>{label}</span>
+                  </div>
+                  <div className="fl-route">
+                    <div className="ap">
+                      <b>{toCode(dep?.airport || l.from) || '—'}</b>
+                      <div className="time">{depTime}</div>
+                      {depGate && <div className="fl-gate">{depGate}</div>}
+                    </div>
+                    <div className="fl-line" />
+                    <div className="ap">
+                      <b>{toCode(arr?.airport || l.to) || '—'}</b>
+                      <div className="time">{arrTime}</div>
+                      {arrGate && <div className="fl-gate">{arrGate}</div>}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            {Object.keys(statuses).length === 0 &&
+              <div className="desc">Showing scheduled — live status needs the backend (Settings) and is available ~7 days out.</div>}
+          </div>
+        )}
+
         {entry && entry.rows.length > 0 && (
           <div className="card">
             <h3><Icon name="idcard" /> Ready to enter{next.destinationCity ? ' · ' + next.destinationCity : ''}?</h3>
@@ -268,44 +306,6 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
                 read the official entry requirements →
               </a>
             </div>
-          </div>
-        )}
-
-        {next && flightLegs.length > 0 && (
-          <div className="fl-section">
-            <h3 className="sec-h"><Icon name="plane" /> Upcoming flights</h3>
-            {flightLegs.map((l, i) => {
-              const s = statuses[l.number + '_' + (l.date || next.startDate)]
-              const [cls, label] = s ? statusChip(s.status) : ['st-ontime', 'scheduled']
-              const dep = s?.departure, arr = s?.arrival
-              const depTime = dep?.revised?.slice(11, 16) || dep?.scheduled?.slice(11, 16) || ''
-              const arrTime = arr?.revised?.slice(11, 16) || arr?.scheduled?.slice(11, 16) || ''
-              const depGate = [dep?.terminal && `Terminal ${dep.terminal}`, dep?.gate && `Gate ${dep.gate}`].filter(Boolean).join(' · ')
-              const arrGate = [arr?.terminal && `Terminal ${arr.terminal}`, arr?.gate && `Gate ${arr.gate}`, arr?.baggageBelt && `Belt ${arr.baggageBelt}`].filter(Boolean).join(' · ')
-              return (
-                <div className="card" key={i}>
-                  <div className="fl-top">
-                    <span className="fl-no"><Icon name="plane" size={15} /> {l.number}{s?.airline ? ' · ' + s.airline : ''}</span>
-                    <span className={'status-chip ' + cls}>{label}</span>
-                  </div>
-                  <div className="fl-route">
-                    <div className="ap">
-                      <b>{toCode(dep?.airport || l.from) || '—'}</b>
-                      <div className="time">{depTime}</div>
-                      {depGate && <div className="fl-gate">{depGate}</div>}
-                    </div>
-                    <div className="fl-line" />
-                    <div className="ap">
-                      <b>{toCode(arr?.airport || l.to) || '—'}</b>
-                      <div className="time">{arrTime}</div>
-                      {arrGate && <div className="fl-gate">{arrGate}</div>}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-            {Object.keys(statuses).length === 0 &&
-              <div className="desc">Showing scheduled — live status needs the backend (Settings) and is available ~7 days out.</div>}
           </div>
         )}
 

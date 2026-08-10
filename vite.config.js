@@ -14,7 +14,15 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      workbox: { clientsClaim: true, skipWaiting: true },
+      // We register the worker ourselves (src/lib/swUpdate.js) so we can pass
+      // `updateViaCache: 'none'` and check for updates far more aggressively
+      // than the default — plus defer the reload while a form is open.
+      injectRegister: null,
+      workbox: {
+        clientsClaim: true,        // take control of open pages immediately
+        skipWaiting: true,         // don't queue behind the old worker
+        cleanupOutdatedCaches: true
+      },
       manifest: {
         name: 'Voyager — Travel Hub',
         short_name: 'Voyager',
