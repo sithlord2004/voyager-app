@@ -34,9 +34,10 @@ export default function App() {
   }
   function dismissInvite() { clearInviteHash(); setInvite(null) }
 
-  // Apply saved theme (auto / light / dark) on load.
+  // Apply saved theme (auto / light / dark) + text size on load.
   useEffect(() => {
     getSetting('theme').then(t => document.documentElement.setAttribute('data-theme', t || 'auto'))
+    getSetting('fontScale').then(v => { if (v) document.documentElement.style.setProperty('--fs', String(v)) })
   }, [])
 
   const reload = useCallback(async () => {

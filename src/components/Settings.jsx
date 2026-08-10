@@ -22,6 +22,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
   const [newPerson, setNewPerson] = useState('')
   const [confirmId, setConfirmId] = useState(null)
   const [theme, setTheme] = useState('auto')
+  const [fontScale, setFontScale] = useState(1)
   const [meId, setMeId] = useState('')
   const [showAll, setShowAll] = useState(false)
   const [invite, setInvite] = useState(null)   // { mode: 'mine' | 'new' } when the modal is open
@@ -34,6 +35,7 @@ export default function Settings({ vaultKey, people = [], reload }) {
   useEffect(() => { isPasskeyEnabled().then(setPkEnabled) }, [])
   useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
   useEffect(() => { getSetting('theme').then(t => setTheme(t || 'auto')) }, [])
+  useEffect(() => { getSetting('fontScale').then(v => setFontScale(v || 1)) }, [])
   useEffect(() => { getSetting('myPersonId').then(v => setMeId(v || '')) }, [])
   useEffect(() => { getSetting('showAllTrips').then(v => setShowAll(!!v)) }, [])
 
@@ -51,6 +53,11 @@ export default function Settings({ vaultKey, people = [], reload }) {
     setTheme(t)
     document.documentElement.setAttribute('data-theme', t)
     await setSetting('theme', t)
+  }
+  async function applyFont(v) {
+    setFontScale(v)
+    document.documentElement.style.setProperty('--fs', String(v))
+    await setSetting('fontScale', v)
   }
 
   async function addPerson() {
@@ -153,6 +160,15 @@ export default function Settings({ vaultKey, people = [], reload }) {
           {['auto', 'light', 'dark'].map(t => (
             <button key={t} className={theme === t ? 'active' : ''} onClick={() => applyTheme(t)}>
               {t === 'auto' ? 'Auto' : t === 'light' ? 'Light' : 'Dark'}
+            </button>
+          ))}
+        </div>
+
+        <p className="desc" style={{ margin: '16px 0 8px' }}>Text size</p>
+        <div className="seg">
+          {[['Default', 1], ['Large', 1.12], ['Larger', 1.24]].map(([label, v]) => (
+            <button key={label} className={Math.abs(fontScale - v) < 0.001 ? 'active' : ''} onClick={() => applyFont(v)}>
+              {label}
             </button>
           ))}
         </div>
