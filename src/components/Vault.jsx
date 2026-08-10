@@ -72,6 +72,16 @@ function DocCard({ doc, vaultKey, ownerName, onView, onDelete, onCountry }) {
 
   const [icon, bg] = ICONS[doc.type] || ICONS['Other']
   const [state, label] = expState(doc)
+
+  // Keep the issuing-country choice in local state so the control responds the
+  // instant it's tapped, rather than waiting on the save + reload round-trip
+  // (a purely controlled select appears to "do nothing" until that completes).
+  const [cc, setCc] = useState(doc.issuingCountry || '')
+  useEffect(() => { setCc(doc.issuingCountry || '') }, [doc.issuingCountry])
+  function chooseCountry(v) {
+    setCc(v)
+    onCountry?.(doc, v)
+  }
   return (
     <div className="doc">
       <span className="lock">{doc.blob ? 'Encrypted' : 'Empty'}</span>
@@ -81,13 +91,13 @@ function DocCard({ doc, vaultKey, ownerName, onView, onDelete, onCountry }) {
       <b>{doc.title}</b>
       <div className="owner">{ownerName(doc.personId)} · {doc.type}</div>
       {doc.type === 'Passport' && (
-        <div className="exp" style={{ borderTop: 'none', paddingTop: 0, marginTop: 8 }}>
+        <label className="doc-cc-row">
           <span>Issued by</span>
-          <select className="doc-cc" value={doc.issuingCountry || ''} onChange={e => onCountry(doc, e.target.value)}>
-            <option value="">Set…</option>
+          <select className="doc-cc" value={cc} onChange={e => chooseCountry(e.target.value)}>
+            <option value="">Tap to set…</option>
             {COUNTRIES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
           </select>
-        </div>
+        </label>
       )}
       <div className="exp"><span>Expiry</span><span className={'v exp-' + state}>{label}</span></div>
       <div className="doc-actions">

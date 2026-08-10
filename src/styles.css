@@ -198,7 +198,13 @@ input{font-family:inherit}
 .doc .owner{font-size:12px;color:var(--text-3);margin-top:1px}
 .doc .exp{font-size:12px;margin-top:11px;padding-top:11px;border-top:1px solid var(--border-soft);display:flex;justify-content:space-between}
 .doc .exp .v{font-weight:600}
-.doc-cc{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:3px 6px;color:var(--text);font-size:12px;font-family:inherit;max-width:130px}
+.doc-cc-row{display:block;margin-top:11px;font-size:12px;color:var(--text-3)}
+.doc-cc-row>span{display:block;margin-bottom:4px}
+.doc-cc{display:block;width:100%;min-height:40px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 30px 8px 10px;color:var(--text);font-size:15px;font-family:inherit;
+  -webkit-appearance:none;appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2378859a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;background-size:16px 16px}
+.doc-cc:focus{border-color:var(--brand);outline:none}
 .exp-ok{color:var(--green)}.exp-warn{color:var(--amber)}.exp-bad{color:var(--red)}
 .doc-actions{margin-top:12px}
 .mini{display:inline-block;font-size:12px;font-weight:600;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:7px 12px;cursor:pointer;color:var(--text-2)}
