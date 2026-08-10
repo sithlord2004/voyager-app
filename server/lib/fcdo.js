@@ -26,6 +26,43 @@ const LEVELS = {
 
 const strip = h => (h || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
 
+// Split an FCDO part's HTML into { "heading": "text" } by its <h2> headings.
+function sections(html) {
+  const out = {}
+  for (const chunk of (html || '').split(/<h2[^>]*>/i).slice(1)) {
+    const m = chunk.match(/^([\s\S]*?)<\/h2>([\s\S]*)$/i)
+    if (m) out[strip(m[1]).toLowerCase()] = strip(m[2])
+  }
+  return out
+}
+
+// Pull live entry requirements out of the same document: the passport-validity
+// rule (in months, so the app can compute the exact date), blank pages, plus the
+// visa and vaccine wording. Falls back gracefully when a country words it oddly.
+function extractEntry(parts) {
+  const er = (parts || []).find(p => p.slug === 'entry-requirements')
+  if (!er) return null
+  const sec = sections(er.body)
+  const passportText = sec['passport validity requirements'] || ''
+  const visaText = sec['visa requirements'] || ''
+  const vaccineText = sec['vaccine requirements'] || sec['vaccination requirements'] || ''
+
+  // "at least 6 months after the date you arrive" / "6 months beyond..."
+  const mMonths = passportText.match(/at least (\d+)\s*months?/i) || passportText.match(/(\d+)\s*months?['’]?\s*validity/i)
+  const mPages = passportText.match(/at least (\d+)\s*blank page/i)
+  // Does the rule count from arrival or from departure/exit?
+  const fromArrival = /after the date you arrive|on arrival|date of arrival|you arrive/i.test(passportText)
+
+  return {
+    months: mMonths ? Number(mMonths[1]) : null,
+    blankPages: mPages ? Number(mPages[1]) : null,
+    from: fromArrival ? 'arrival' : 'departure',
+    passportText: passportText.slice(0, 420),
+    visaText: visaText.slice(0, 420),
+    vaccineText: vaccineText.slice(0, 300)
+  }
+}
+
 export async function fetchAdvisory(countryCode, countryName) {
   const slug = CC_SLUG[(countryCode || '').toUpperCase()] || slugify(countryName)
   if (!slug) return null
@@ -56,6 +93,9 @@ export async function fetchAdvisory(countryCode, countryName) {
     updated: data.public_updated_at || data.updated_at || null,
     changeDescription: strip(data?.details?.change_description || ''),
     link: `https://www.gov.uk/foreign-travel-advice/${slug}`,
+    // Live entry requirements (passport validity in months, visa + vaccine text)
+    entry: extractEntry(parts),
+    entryLink: `https://www.gov.uk/foreign-travel-advice/${slug}/entry-requirements`,
     fingerprint: (data.public_updated_at || '') + '|' + alertStatus.join(',')
   }
 }

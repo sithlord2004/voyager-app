@@ -4,6 +4,7 @@ import { geocode } from '../lib/weather.js'
 import { Icon } from './Icon.jsx'
 import Collapsible from './Collapsible.jsx'
 import { getAdvisory } from '../lib/advisory.js'
+import { getEssentials } from '../lib/essentials.js'
 
 // Local emergency numbers by country code. Many countries (esp. EU) use 112.
 const EU = name => ({ name, rows: [['🆘 Emergencies (EU 112)', '112']] })
@@ -112,6 +113,7 @@ export default function Emergency({ trips = [] }) {
 
   const local = NUMBERS[cc]
   const emb = EMBASSY[home]
+  const essentials = getEssentials(cc)
 
   return (
     <div>
@@ -164,6 +166,19 @@ export default function Emergency({ trips = [] }) {
           </>
         )}
       </Collapsible>
+
+      {essentials && (
+        <Collapsible id="emg-essentials" icon="bulb" title={`Destination essentials${countryName ? ' · ' + countryName : ''}`}>
+          <div className="ess-grid">
+            <div className="ess"><span className="k">Plug type</span><b>Type {essentials.plug}</b><small>{essentials.volts}</small></div>
+            <div className="ess"><span className="k">Tap water</span><b className={essentials.waterLevel === 'ok' ? 'ess-ok' : 'ess-warn'}>{essentials.waterLevel === 'ok' ? 'Drinkable' : 'Bottled'}</b><small>{essentials.waterText}</small></div>
+            <div className="ess"><span className="k">Driving</span><b>{essentials.side === 'left' ? 'Left' : 'Right'} side</b><small>Drives on the {essentials.side}</small></div>
+            <div className="ess"><span className="k">Currency</span><b>{essentials.cur}</b><small>Local currency</small></div>
+            <div className="ess ess-wide"><span className="k">Tipping</span><b>{essentials.tip}</b></div>
+          </div>
+          <div className="desc" style={{ marginTop: 10, fontSize: 11 }}>General guidance — customs vary by region. Works offline.</div>
+        </Collapsible>
+      )}
 
       <Collapsible id="emg-hospitals" icon="hospital" title={`Hospitals${dest ? ' · ' + dest : ''}`} badge={hospitals?.length || null} defaultOpen>
         {hLoading && <div className="desc">Finding hospitals nearby…</div>}

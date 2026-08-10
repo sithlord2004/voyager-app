@@ -3,6 +3,10 @@ import { geocode, currentWeather, WMO, FLAGS } from '../lib/weather.js'
 import { getFlightStatus, statusChip } from '../lib/flights.js'
 import { getSetting } from '../lib/db.js'
 import { toCode } from '../lib/airports.js'
+import { checkEntry, officialLink } from '../lib/entry.js'
+import { getAdvisory } from '../lib/advisory.js'
+import { loadProfile } from '../lib/profile.js'
+import { toNationalityCode, sourceFor, nationalityLabel } from '../lib/nationality.js'
 import { Icon } from './Icon.jsx'
 
 const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT']
@@ -22,7 +26,7 @@ function Ring({ pct }) {
   )
 }
 
-export default function Dashboard({ trips, documents, people, packing = [], refreshKey, setView }) {
+export default function Dashboard({ trips, documents, people, packing = [], refreshKey, setView, vaultKey }) {
   // Brand-new install: no family added yet. Show a friendly welcome instead of
   // empty widgets, guiding the user to set up.
   const firstRun = (people?.length || 0) === 0 && (trips?.length || 0) === 0
@@ -100,6 +104,43 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
     .filter(x => x.days < 180)
     .sort((a, b) => a.days - b.days)
   const ownerName = id => people.find(p => p.id === id)?.name || ''
+
+  // "Ready to enter?" — passport-validity checks for the next trip. We pull the
+  // live rule from the official FCDO entry-requirements page when the backend is
+  // reachable, and fall back to the built-in table offline.
+  const [entryLive, setEntryLive] = useState(null)
+  useEffect(() => {
+    if (!next) return
+    let off = false
+    getAdvisory(next.countryCode, next.destinationCity)
+      .then(a => { if (!off && a?.status === 'ok' && a.entry) setEntryLive({ ...a.entry, link: a.entryLink }) })
+      .catch(() => {})
+    return () => { off = true }
+  }, [next?.id, next?.countryCode, refreshKey]) // eslint-disable-line
+
+  const tripTravellers = next ? (next.travellerIds?.length ? people.filter(p => next.travellerIds.includes(p.id)) : people) : []
+  const passportDocs = documents.filter(d => !d.deleted && d.type === 'Passport')
+
+  // Each traveller's nationality comes from their encrypted profile, so we can
+  // tell whose passport the live (UK-written) rule actually applies to.
+  const [nationalities, setNationalities] = useState({})
+  useEffect(() => {
+    if (!vaultKey || !people.length) return
+    let off = false
+    ;(async () => {
+      const out = {}
+      for (const p of people) {
+        if (!p.profileEnc) continue
+        const prof = await loadProfile(vaultKey, p)
+        const code = toNationalityCode(prof.nationality || prof.passportCountry)
+        if (code) out[p.id] = code
+      }
+      if (!off) setNationalities(out)
+    })()
+    return () => { off = true }
+  }, [vaultKey, people.map(p => p.id + (p.profileEnc ? '1' : '0')).join(',')]) // eslint-disable-line
+
+  const entry = next ? checkEntry(next, tripTravellers, passportDocs, entryLive, nationalities, 'GB') : null
 
   // Trip readiness — rolls up the essentials for the next trip into one score.
   const travellers = next ? (next.travellerIds?.length ? people.filter(p => next.travellerIds.includes(p.id)) : people) : []
@@ -183,6 +224,52 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
             </div>
           ) : <div className="desc">Add a trip to see how ready you are.</div>}
         </div>
+
+        {entry && entry.rows.length > 0 && (
+          <div className="card">
+            <h3><Icon name="idcard" /> Ready to enter{next.destinationCity ? ' · ' + next.destinationCity : ''}?</h3>
+            <p className="desc" style={{ marginBottom: 10 }}>
+              Passports usually need to be {entry.rule.label}
+              {entry.requiredUntil ? ` — i.e. valid past ${entry.requiredUntil.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}.
+            </p>
+            {entry.rows.map(r => {
+              const src = r.natMismatch ? sourceFor(r.nat, next.destinationCountry || next.destinationCity) : null
+              return (
+                <div className={'entry-row entry-' + r.level} key={r.id}>
+                  <span className="er-dot" />
+                  <div className="er-body">
+                    <b>{r.name}{r.nat && <span className="er-nat">{nationalityLabel(r.nat)}</span>}</b>
+                    <small>{r.text}</small>
+                    {src && (
+                      <small className="er-note">
+                        Rule below is for {nationalityLabel(entry.ruleNationality)} passports —{' '}
+                        <a href={src.url} target="_blank" rel="noopener noreferrer">check {src.name} →</a>
+                      </small>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+
+            {entryLive?.passportText && (
+              <div className="entry-official">
+                <b>Official — passport validity {entry.anyMismatch ? '(British passports)' : ''}</b>
+                <p>{entryLive.passportText}</p>
+                {entryLive.visaText && <><b>Visas</b><p>{entryLive.visaText}</p></>}
+              </div>
+            )}
+
+            <div className="desc" style={{ marginTop: 10 }}>
+              {entry.rule.source === 'live'
+                ? <>🟢 Live rule from the UK Foreign Office. Requirements vary by nationality — </>
+                : <>Using built-in guidance (offline). Rules vary by nationality — </>}
+              <a href={entryLive?.link || officialLink(next.destinationCountry || next.destinationCity)}
+                 target="_blank" rel="noopener noreferrer">
+                read the official entry requirements →
+              </a>
+            </div>
+          </div>
+        )}
 
         {next && flightLegs.length > 0 && (
           <div className="fl-section">

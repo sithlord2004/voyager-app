@@ -5,6 +5,7 @@ import { getSyncConfig, syncNow } from '../lib/sync.js'
 import { scanPassport } from '../lib/ocr.js'
 import { Icon } from './Icon.jsx'
 import Collapsible from './Collapsible.jsx'
+import { PROFILE_FIELDS, emptyProfile, loadProfile, saveProfile, hasProfile } from '../lib/profile.js'
 
 const TYPES =['Passport', 'Visa', 'Driving licence', 'Travel insurance', 'Vaccination record', 'Booking', 'Flight ticket', 'Other']
 const ICONS = {
@@ -95,6 +96,7 @@ function DocCard({ doc, vaultKey, ownerName, onView, onDelete }) {
 export default function Vault({ vaultKey, documents, people, reload }) {
   const [msg, setMsg] = useState('')
   const [adding, setAdding] = useState(false)
+  const [profileFor, setProfileFor] = useState(null)   // person whose profile is open
   const [syncOn, setSyncOn] = useState(false)
   const [viewer, setViewer] = useState(null) // { url, mime, name } for the in-app viewer
   const ownerName = id => people.find(p => p.id === id)?.name || ''
@@ -170,6 +172,27 @@ export default function Vault({ vaultKey, documents, people, reload }) {
           <small>Files are AES-256 encrypted with your passphrase-derived key before being stored{syncOn ? ' or synced' : ''}.</small></div>
       </div>
 
+      {people.length > 0 && (
+        <Collapsible id="vault-profiles" icon="idcard" title="Travel profiles"
+          badge={people.filter(hasProfile).length || null}>
+          <p className="desc" style={{ marginTop: 0 }}>
+            Passport numbers, dates of birth and frequent-flyer details — encrypted like your documents, ready when you're filling in a booking form.
+          </p>
+          {people.map(p => (
+            <div className="alert" key={p.id}>
+              <div className="ai" style={{ background: p.color || 'var(--surface)', color: '#fff', fontWeight: 700, fontSize: 12 }}>
+                {p.initials || (p.name || '?')[0]}
+              </div>
+              <div className="body">
+                <b>{p.name}</b>
+                <small>{hasProfile(p) ? 'Profile saved · encrypted' : 'No profile yet'}</small>
+              </div>
+              <button className="mini" onClick={() => setProfileFor(p)}>{hasProfile(p) ? 'View / edit' : 'Add'}</button>
+            </div>
+          ))}
+        </Collapsible>
+      )}
+
       {visible.length ? (
         <>
           {groups.map(g => (
@@ -193,6 +216,10 @@ export default function Vault({ vaultKey, documents, people, reload }) {
         onClose={() => setAdding(false)}
         onSaved={() => { setAdding(false); flash('✅ Encrypted & stored on device') }} />}
 
+      {profileFor && <ProfileModal person={profileFor} vaultKey={vaultKey}
+        onClose={() => setProfileFor(null)}
+        onSaved={() => { setProfileFor(null); flash('Profile encrypted & saved') }} />}
+
       {viewer && (
         <div className="modal-backdrop" onClick={closeViewer}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '94vw', width: 'auto', textAlign: 'center' }}>
@@ -210,6 +237,63 @@ export default function Vault({ vaultKey, documents, people, reload }) {
       )}
 
       {msg && <div className="toast show">{msg}</div>}
+    </div>
+  )
+}
+
+// Encrypted travel profile for one person.
+function ProfileModal({ person, vaultKey, onClose, onSaved }) {
+  const [profile, setProfile] = useState(emptyProfile())
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [reveal, setReveal] = useState(false)
+
+  useEffect(() => {
+    let off = false
+    loadProfile(vaultKey, person).then(p => { if (!off) { setProfile(p); setLoading(false) } })
+    return () => { off = true }
+  }, [person.id]) // eslint-disable-line
+
+  const set = (k, v) => setProfile({ ...profile, [k]: v })
+  async function save() {
+    setBusy(true)
+    try { await saveProfile(vaultKey, person.id, profile); onSaved() }
+    catch { setBusy(false) }
+  }
+
+  // Passport number is masked until revealed, in case someone's looking over your shoulder.
+  const isSecret = k => k === 'passportNumber'
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h3>{person.name}'s travel profile</h3>
+        {loading ? <p className="desc">Decrypting…</p> : (
+          <>
+            <p className="desc">Stored encrypted on your device. Handy when a booking form asks for passport details.</p>
+            {PROFILE_FIELDS.map(([k, label, placeholder]) => (
+              <label key={k}>
+                {label}
+                <input
+                  type={isSecret(k) && !reveal ? 'password' : k === 'dob' ? 'date' : 'text'}
+                  value={profile[k] || ''}
+                  onChange={e => set(k, e.target.value)}
+                  placeholder={placeholder}
+                  autoComplete="off"
+                />
+              </label>
+            ))}
+            <label className="switch-row">
+              <span>Show passport number</span>
+              <input type="checkbox" checked={reveal} onChange={e => setReveal(e.target.checked)} />
+            </label>
+          </>
+        )}
+        <div className="modal-actions">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn" onClick={save} disabled={loading || busy}>{busy ? 'Saving…' : 'Save profile'}</button>
+        </div>
+      </div>
     </div>
   )
 }

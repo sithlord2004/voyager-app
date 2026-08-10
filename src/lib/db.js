@@ -62,6 +62,11 @@ export async function createPerson(person) {
   return rec
 }
 
+// Edit a family member (e.g. their encrypted travel profile); dirty so it syncs.
+export async function updatePerson(id, patch) {
+  await db.people.update(id, { ...patch, updatedAt: Date.now(), dirty: 1 })
+}
+
 // Soft-delete a family member so the removal also syncs to other devices.
 export async function deletePerson(id) {
   await db.people.update(id, { deleted: 1, dirty: 1, updatedAt: Date.now() })

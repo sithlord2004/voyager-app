@@ -222,6 +222,35 @@ input{font-family:inherit}
 .emg-item b{font-size:17px;color:#fff}
 .emg-item .lbl{font-size:12px;color:rgba(255,255,255,.85);margin-bottom:5px;display:flex;gap:6px;align-items:center}
 
+/* Ready to enter? */
+.entry-row{display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border-soft)}
+.entry-row:first-of-type{border-top:none;padding-top:2px}
+.er-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:5px;background:var(--text-3)}
+.entry-ok .er-dot{background:var(--green)}
+.entry-warn .er-dot{background:var(--amber)}
+.entry-bad .er-dot{background:var(--red)}
+.er-body{min-width:0}
+.er-body b{font-size:13.5px;font-weight:600;display:block}
+.er-body small{font-size:12.5px;color:var(--text-3);display:block;margin-top:2px;line-height:1.5}
+.entry-bad .er-body small{color:#f87171}
+.entry-official{margin-top:12px;padding:12px 13px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border-soft)}
+.entry-official b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px}
+.entry-official b~b{margin-top:10px}
+.entry-official p{font-size:12.5px;color:var(--text-2);line-height:1.55;margin:0}
+.er-nat{margin-left:7px;font-size:10.5px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:var(--text-3);background:var(--surface-2);border:1px solid var(--border-soft);border-radius:999px;padding:1px 7px;vertical-align:middle}
+.er-note{margin-top:4px!important;color:var(--amber)!important}
+.er-note a{color:inherit;font-weight:600;text-decoration:underline}
+
+/* Destination essentials */
+.ess-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.ess{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:12px;padding:12px 13px;min-width:0}
+.ess .k{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px}
+.ess b{font-size:14.5px;font-weight:600;display:block;letter-spacing:-.1px}
+.ess small{display:block;font-size:11.5px;color:var(--text-3);margin-top:3px;line-height:1.45}
+.ess-wide{grid-column:1/-1}
+.ess-ok{color:var(--green)}
+.ess-warn{color:var(--amber)}
+
 /* Trips */
 .trip-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:relative;background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:14px 54px 14px 16px;margin-bottom:11px}
 .trip-flag{width:54px;height:54px;border-radius:12px;display:grid;place-items:center;font-size:27px;flex-shrink:0;background:var(--grad-sky)}
