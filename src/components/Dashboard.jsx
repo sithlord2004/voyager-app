@@ -6,7 +6,7 @@ import { toCode } from '../lib/airports.js'
 import { checkEntry, officialLink } from '../lib/entry.js'
 import { getAdvisory } from '../lib/advisory.js'
 import { loadProfile } from '../lib/profile.js'
-import { toNationalityCode, sourceFor, nationalityLabel } from '../lib/nationality.js'
+import { toNationalityCodes, sourceFor, nationalityLabel } from '../lib/nationality.js'
 import { Icon } from './Icon.jsx'
 
 const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT']
@@ -132,15 +132,20 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
       for (const p of people) {
         if (!p.profileEnc) continue
         const prof = await loadProfile(vaultKey, p)
-        const code = toNationalityCode(prof.nationality || prof.passportCountry)
-        if (code) out[p.id] = code
+        // Dual nationals: "British, Australian" -> ['GB','AU']
+        const codes = toNationalityCodes(prof.nationality, prof.passportCountry)
+        if (codes.length) out[p.id] = codes
       }
       if (!off) setNationalities(out)
     })()
     return () => { off = true }
   }, [vaultKey, people.map(p => p.id + (p.profileEnc ? '1' : '0')).join(',')]) // eslint-disable-line
 
-  const entry = next ? checkEntry(next, tripTravellers, passportDocs, entryLive, nationalities, 'GB') : null
+  // Where you live — a trip inside your own country is domestic (no passport).
+  const [homeCode, setHomeCode] = useState('')
+  useEffect(() => { getSetting('homeCountry').then(h => setHomeCode(h || '')) }, [refreshKey])
+
+  const entry = next ? checkEntry(next, tripTravellers, passportDocs, entryLive, nationalities, 'GB', homeCode) : null
 
   // Trip readiness — rolls up the essentials for the next trip into one score.
   const travellers = next ? (next.travellerIds?.length ? people.filter(p => next.travellerIds.includes(p.id)) : people) : []
@@ -265,11 +270,17 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
 
         {entry && entry.rows.length > 0 && (
           <div className="card">
-            <h3><Icon name="idcard" /> Ready to enter{next.destinationCity ? ' · ' + next.destinationCity : ''}?</h3>
-            <p className="desc" style={{ marginBottom: 10 }}>
-              Passports usually need to be {entry.rule.label}
-              {entry.requiredUntil ? ` — i.e. valid past ${entry.requiredUntil.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}.
-            </p>
+            <h3><Icon name="idcard" /> {entry.domestic ? 'Travel documents' : `Ready to enter${next.destinationCity ? ' · ' + next.destinationCity : ''}?`}</h3>
+            {entry.domestic ? (
+              <p className="desc" style={{ marginBottom: 10 }}>
+                This is a domestic trip — no passport or entry requirements. Just bring photo ID for the airline.
+              </p>
+            ) : (
+              <p className="desc" style={{ marginBottom: 10 }}>
+                Passports usually need to be {entry.rule.label}
+                {entry.requiredUntil ? ` — i.e. valid past ${entry.requiredUntil.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}.
+              </p>
+            )}
             {entry.rows.map(r => {
               const src = r.natMismatch ? sourceFor(r.nat, next.destinationCountry || next.destinationCity) : null
               return (
@@ -289,7 +300,7 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
               )
             })}
 
-            {entryLive?.passportText && (
+            {!entry.domestic && entryLive?.passportText && (
               <div className="entry-official">
                 <b>Official — passport validity {entry.anyMismatch ? '(British passports)' : ''}</b>
                 <p>{entryLive.passportText}</p>
@@ -297,15 +308,17 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
               </div>
             )}
 
-            <div className="desc" style={{ marginTop: 10 }}>
-              {entry.rule.source === 'live'
-                ? <>🟢 Live rule from the UK Foreign Office. Requirements vary by nationality — </>
-                : <>Using built-in guidance (offline). Rules vary by nationality — </>}
-              <a href={entryLive?.link || officialLink(next.destinationCountry || next.destinationCity)}
-                 target="_blank" rel="noopener noreferrer">
-                read the official entry requirements →
-              </a>
-            </div>
+            {!entry.domestic && (
+              <div className="desc" style={{ marginTop: 10 }}>
+                {entry.rule.source === 'live'
+                  ? <>🟢 Live rule from the UK Foreign Office. Requirements vary by nationality — </>
+                  : <>Using built-in guidance (offline). Rules vary by nationality — </>}
+                <a href={entryLive?.link || officialLink(next.destinationCountry || next.destinationCity)}
+                   target="_blank" rel="noopener noreferrer">
+                  read the official entry requirements →
+                </a>
+              </div>
+            )}
           </div>
         )}
 

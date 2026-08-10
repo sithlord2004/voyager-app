@@ -198,6 +198,7 @@ input{font-family:inherit}
 .doc .owner{font-size:12px;color:var(--text-3);margin-top:1px}
 .doc .exp{font-size:12px;margin-top:11px;padding-top:11px;border-top:1px solid var(--border-soft);display:flex;justify-content:space-between}
 .doc .exp .v{font-weight:600}
+.doc-cc{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:3px 6px;color:var(--text);font-size:12px;font-family:inherit;max-width:130px}
 .exp-ok{color:var(--green)}.exp-warn{color:var(--amber)}.exp-bad{color:var(--red)}
 .doc-actions{margin-top:12px}
 .mini{display:inline-block;font-size:12px;font-weight:600;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:7px 12px;cursor:pointer;color:var(--text-2)}

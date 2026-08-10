@@ -6,6 +6,7 @@ import { scanPassport } from '../lib/ocr.js'
 import { Icon } from './Icon.jsx'
 import Collapsible from './Collapsible.jsx'
 import { PROFILE_FIELDS, emptyProfile, loadProfile, saveProfile, hasProfile } from '../lib/profile.js'
+import { COUNTRIES } from '../lib/nationality.js'
 
 const TYPES =['Passport', 'Visa', 'Driving licence', 'Travel insurance', 'Vaccination record', 'Booking', 'Flight ticket', 'Other']
 const ICONS = {
@@ -56,7 +57,7 @@ async function prepareFile(file) {
   return { bytes: await file.arrayBuffer(), mime: file.type, name: file.name }
 }
 
-function DocCard({ doc, vaultKey, ownerName, onView, onDelete }) {
+function DocCard({ doc, vaultKey, ownerName, onView, onDelete, onCountry }) {
   const [thumb, setThumb] = useState(null)
   const [confirmDel, setConfirmDel] = useState(false)
   useEffect(() => {
@@ -79,6 +80,15 @@ function DocCard({ doc, vaultKey, ownerName, onView, onDelete }) {
         : <div className="dtype" style={{ background: bg }}><Icon name={icon} size={21} /></div>}
       <b>{doc.title}</b>
       <div className="owner">{ownerName(doc.personId)} · {doc.type}</div>
+      {doc.type === 'Passport' && (
+        <div className="exp" style={{ borderTop: 'none', paddingTop: 0, marginTop: 8 }}>
+          <span>Issued by</span>
+          <select className="doc-cc" value={doc.issuingCountry || ''} onChange={e => onCountry(doc, e.target.value)}>
+            <option value="">Set…</option>
+            {COUNTRIES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
+          </select>
+        </div>
+      )}
       <div className="exp"><span>Expiry</span><span className={'v exp-' + state}>{label}</span></div>
       <div className="doc-actions">
         {doc.blob
@@ -150,9 +160,16 @@ export default function Vault({ vaultKey, documents, people, reload }) {
   const groups = people.map(p => ({ p, docs: visible.filter(d => d.personId === p.id) })).filter(g => g.docs.length)
   const orphans = visible.filter(d => !people.some(p => p.id === d.personId))
 
+  // Tag which country issued a passport, so the entry checker knows which one
+  // applies to a given destination (dual nationals hold more than one).
+  async function onCountry(doc, cc) {
+    await db.documents.update(doc.id, { issuingCountry: cc || null, dirty: 1, updatedAt: Date.now() })
+    reload()
+  }
+
   const grid = docs => (
     <div className="doc-grid">
-      {docs.map(d => <DocCard key={d.id} doc={d} vaultKey={vaultKey} ownerName={ownerName} onView={onView} onDelete={onDelete} />)}
+      {docs.map(d => <DocCard key={d.id} doc={d} vaultKey={vaultKey} ownerName={ownerName} onView={onView} onDelete={onDelete} onCountry={onCountry} />)}
     </div>
   )
 
@@ -307,6 +324,7 @@ function AddDocModal({ people, vaultKey, onClose, onSaved }) {
   const [busy, setBusy] = useState(false)
   const [number, setNumber] = useState('')
   const [ocrMsg, setOcrMsg] = useState('')
+  const [issuingCountry, setIssuingCountry] = useState('')
 
   // Read the passport MRZ and pre-fill the form (all in-browser).
   async function autoFill() {
@@ -335,6 +353,7 @@ function AddDocModal({ people, vaultKey, onClose, onSaved }) {
     }
     await saveDocument({
       personId, type, title: title || type, expiryDate: expiry || null, number: number || null,
+      issuingCountry: type === 'Passport' ? (issuingCountry || null) : null,
       tripId: null, blob, thumb, mime, fileName
     })
     setBusy(false)
@@ -356,6 +375,14 @@ function AddDocModal({ people, vaultKey, onClose, onSaved }) {
           </select>
         </label>
         <label>Title <input value={title} onChange={e => setTitle(e.target.value)} placeholder={type} /></label>
+        {type === 'Passport' && (
+          <label>Issued by
+            <select value={issuingCountry} onChange={e => setIssuingCountry(e.target.value)}>
+              <option value="">Not set</option>
+              {COUNTRIES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
+            </select>
+          </label>
+        )}
         <label>Expiry date <input type="date" value={expiry} onChange={e => setExpiry(e.target.value)} /></label>
         <div className="file-row">
           <label className="mini">📁 Choose file

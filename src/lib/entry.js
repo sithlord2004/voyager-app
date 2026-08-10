@@ -54,10 +54,33 @@ export function officialLink(countryName) {
 // Build a per-traveller checklist for a trip.
 //   travellers: [{ id, name }]
 //   passports:  documents filtered to type 'Passport' (needs personId + expiryDate)
-// `nationalities` maps personId -> ISO code (from their encrypted profile).
+// `nationalities` maps personId -> array of ISO codes (from their encrypted
+// profile; dual nationals have more than one).
 // `ruleNationality` is whose passports the live rule was written for (FCDO = GB).
-export function checkEntry(trip, travellers, passports, live, nationalities = {}, ruleNationality = 'GB') {
+// `homeCode` is the country you live in — a trip inside it is domestic, so no
+// passport or entry requirements apply at all.
+export function checkEntry(trip, travellers, passports, live, nationalities = {}, ruleNationality = 'GB', homeCode = '') {
   if (!trip) return null
+  const dest = (trip.countryCode || '').toUpperCase()
+  const home = (homeCode || '').toUpperCase()
+
+  // Domestic trip: flying within your own country needs no passport (airlines
+  // still want photo ID, but that's not an entry requirement).
+  if (dest && home && dest === home) {
+    return {
+      domestic: true,
+      rule: { months: 0, label: 'not needed for a domestic trip', source: 'domestic', from: 'departure' },
+      requiredUntil: null,
+      ruleNationality,
+      anyMismatch: false,
+      worst: 'ok',
+      rows: travellers.map(p => ({
+        id: p.id, name: p.name, level: 'ok', domestic: true,
+        nat: (nationalities[p.id] || [])[0] || '',
+        text: 'Domestic trip — no passport required. Carry photo ID for the airline.'
+      }))
+    }
+  }
   const rule = validityRule(trip.countryCode, live)
   const end = trip.endDate ? new Date(trip.endDate + 'T00:00') : null
   const start = trip.startDate ? new Date(trip.startDate + 'T00:00') : null
@@ -66,36 +89,59 @@ export function checkEntry(trip, travellers, passports, live, nationalities = {}
   const requiredUntil = base ? addMonths(base, rule.months) : null
 
   const rows = travellers.map(p => {
-    const nat = (nationalities[p.id] || '').toUpperCase()
-    // The live rule is written for one nationality; flag anyone travelling on a
-    // different passport so they don't rely on a rule that may not apply.
-    const natMismatch = !!(nat && rule.source === 'live' && nat !== ruleNationality)
-    const base = { id: p.id, name: p.name, nat, natMismatch }
-
-    const doc = passports
+    // Each passport, newest expiry first, tagged with the country that issued it.
+    const docs = passports
       .filter(d => d.personId === p.id && d.expiryDate)
-      .sort((a, b) => b.expiryDate.localeCompare(a.expiryDate))[0]
+      .map(d => ({ exp: new Date(d.expiryDate + 'T00:00'), cc: (d.issuingCountry || '').toUpperCase() }))
+      .sort((a, b) => b.exp - a.exp)
 
-    if (!doc) {
+    // Nationalities we know about: from the profile, plus any passport we hold.
+    const nats = [...new Set([
+      ...(nationalities[p.id] || []).map(n => n.toUpperCase()),
+      ...docs.map(d => d.cc).filter(Boolean)
+    ])]
+    // The live rule is written for one nationality. A dual national who holds
+    // that nationality is covered, so only flag people who hold none of it.
+    const natMismatch = !!(nats.length && rule.source === 'live' && !nats.includes(ruleNationality))
+    const which = cc => cc ? ` on your ${cc} passport` : ''
+    const base = { id: p.id, name: p.name, nat: nats.join(' / '), nats, natMismatch }
+
+    if (!docs.length) {
       return { ...base, level: 'unknown',
         text: 'No passport expiry saved — add it in the Vault to check.' }
     }
-    const exp = new Date(doc.expiryDate + 'T00:00')
-    if (end && exp < end) {
-      return { ...base, level: 'bad',
-        text: `Passport expires ${fmt(exp)} — before your return. Renew before travelling.` }
+
+    // Citizen of the destination? Then you enter on that passport: no visa and
+    // no six-month rule — it only has to be valid.
+    const citizen = dest ? docs.find(d => d.cc === dest) : null
+    if (citizen) {
+      if (end && citizen.exp < end) {
+        return { ...base, level: 'bad', usedCc: citizen.cc,
+          text: `Your ${citizen.cc} passport expires ${fmt(citizen.exp)} — before your return. Renew before travelling.` }
+      }
+      return { ...base, level: 'ok', usedCc: citizen.cc, citizen: true,
+        text: `Entering as a citizen${which(citizen.cc)} — valid until ${fmt(citizen.exp)}. No visa needed.` }
     }
-    if (requiredUntil && exp < requiredUntil) {
-      const daysShort = Math.ceil((requiredUntil - exp) / DAY)
-      return { ...base, level: 'bad',
-        text: `Expires ${fmt(exp)} — needs to be valid until ${fmt(requiredUntil)} (${rule.label}). Short by ~${daysShort} days.` }
+
+    // Otherwise: you're fine if ANY passport you hold meets the requirement.
+    const passing = docs.find(d => !requiredUntil || d.exp >= requiredUntil)
+    if (passing) {
+      const tight = requiredUntil && passing.exp < addMonths(requiredUntil, 1)
+      return { ...base, level: tight ? 'warn' : 'ok', usedCc: passing.cc,
+        text: tight
+          ? `Valid until ${fmt(passing.exp)}${which(passing.cc)} — only just meets the ${rule.label} rule. Fine, but cutting it close.`
+          : `Passport valid until ${fmt(passing.exp)}${which(passing.cc)}.` }
     }
-    // Valid, but flag if it's close to the line.
-    if (requiredUntil && exp < addMonths(requiredUntil, 1)) {
-      return { ...base, level: 'warn',
-        text: `Valid until ${fmt(exp)} — only just meets the ${rule.label} rule. Fine, but cutting it close.` }
+
+    // None qualify — report the best one and how far short it is.
+    const best = docs[0]
+    if (end && best.exp < end) {
+      return { ...base, level: 'bad', usedCc: best.cc,
+        text: `Passport expires ${fmt(best.exp)} — before your return. Renew before travelling.` }
     }
-    return { ...base, level: 'ok', text: `Passport valid until ${fmt(exp)}.` }
+    const daysShort = Math.ceil((requiredUntil - best.exp) / DAY)
+    return { ...base, level: 'bad', usedCc: best.cc,
+      text: `${docs.length > 1 ? 'Best passport expires' : 'Expires'} ${fmt(best.exp)} — needs to be valid until ${fmt(requiredUntil)} (${rule.label}). Short by ~${daysShort} days.` }
   })
 
   const worst = rows.some(r => r.level === 'bad') ? 'bad'

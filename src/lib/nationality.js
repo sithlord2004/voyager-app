@@ -47,6 +47,19 @@ const FALLBACK = {
 
 const slug = s => (s || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
+// Dual nationals are common, so accept a list: "British, Australian" /
+// "British & Australian" / "British and Australian" -> ['GB','AU'].
+export function toNationalityCodes(...texts) {
+  const out = []
+  for (const t of texts) {
+    for (const piece of (t || '').split(/[,/&+;]|\band\b/i)) {
+      const code = toNationalityCode(piece)
+      if (code && !out.includes(code)) out.push(code)
+    }
+  }
+  return out
+}
+
 // Normalise a free-text nationality to a country code (or '' if unrecognised).
 export function toNationalityCode(text) {
   const t = (text || '').trim().toLowerCase()
@@ -72,3 +85,14 @@ const ADJECTIVE = {
   JP: 'Japanese', CN: 'Chinese'
 }
 export const nationalityLabel = code => ADJECTIVE[(code || '').toUpperCase()] || code || ''
+
+// Countries offered when tagging which passport is which.
+export const COUNTRIES = [
+  ['GB', 'United Kingdom'], ['AU', 'Australia'], ['NZ', 'New Zealand'], ['IE', 'Ireland'],
+  ['US', 'United States'], ['CA', 'Canada'], ['IN', 'India'], ['ZA', 'South Africa'],
+  ['SG', 'Singapore'], ['DE', 'Germany'], ['FR', 'France'], ['ES', 'Spain'], ['IT', 'Italy'],
+  ['NL', 'Netherlands'], ['PT', 'Portugal'], ['PL', 'Poland'], ['SE', 'Sweden'],
+  ['DK', 'Denmark'], ['NO', 'Norway'], ['JP', 'Japan'], ['CN', 'China']
+]
+export const countryName = code =>
+  (COUNTRIES.find(c => c[0] === (code || '').toUpperCase()) || [])[1] || code || ''
