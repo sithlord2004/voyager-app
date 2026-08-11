@@ -16,7 +16,18 @@ import ModalPortal from './components/ModalPortal.jsx'
 
 export default function App() {
   const [vaultKey, setVaultKey] = useState(null)   // in-memory only; null = locked
-  const [view, setView] = useState('dashboard')
+  // Notifications deep-link with ?view=packing etc, so tapping one lands you on
+  // the right screen instead of the dashboard.
+  const [view, setView] = useState(() => {
+    const v = new URLSearchParams(location.search).get('view')
+    return ['dashboard', 'trips', 'vault', 'packing', 'emergency', 'settings', 'help'].includes(v) ? v : 'dashboard'
+  })
+  // Drop the parameter once we've used it, so a later refresh doesn't reopen it.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('view')) {
+      history.replaceState(null, '', location.pathname + location.hash)
+    }
+  }, [])
   const [data, setData] = useState(null)
   // An invite link (#invite=...) captured on load — offered once the vault is unlocked.
   const [invite, setInvite] = useState(() => readInviteFromHash())

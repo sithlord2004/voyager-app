@@ -21,7 +21,9 @@ export default defineConfig({
       workbox: {
         clientsClaim: true,        // take control of open pages immediately
         skipWaiting: true,         // don't queue behind the old worker
-        cleanupOutdatedCaches: true
+        cleanupOutdatedCaches: true,
+        // Pull our push/notification handlers into the generated worker.
+        importScripts: ['/push-sw.js']
       },
       manifest: {
         name: 'Voyager — Travel Hub',

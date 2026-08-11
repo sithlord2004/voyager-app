@@ -1,7 +1,31 @@
-// GET /api/expiry-alerts — daily cron, emails soon-to-expire documents.
+// GET /api/expiry-alerts — daily cron: emails + push notifications for
+// expiring documents, travel-advisory changes, and the day's travel.
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { fetchAdvisory } from '../lib/fcdo.js'
+import { pushToFamily } from '../lib/push.js'
+
+// Scheduled departure time for a flight (best-effort; used to enrich the
+// travel-day notification).
+async function fetchFlight(number, date) {
+  if (!process.env.AERODATABOX_KEY) return null
+  const r = await fetch(`https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(number)}/${date}`, {
+    headers: {
+      'X-RapidAPI-Key': process.env.AERODATABOX_KEY,
+      'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com'
+    }
+  })
+  if (!r.ok) return null
+  const arr = await r.json()
+  const f = Array.isArray(arr) ? arr[0] : arr
+  if (!f) return null
+  return {
+    departure: {
+      scheduled: f.departure?.scheduledTime?.local,
+      revised: f.departure?.revisedTime?.local
+    }
+  }
+}
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -34,6 +58,62 @@ export default async function handler(req, res) {
       .map(d => ({ ...d, days: daysUntil(d.expiry_date) }))
       .filter(d => d.days >= 0 && d.days <= WARN_DAYS)
       .sort((a, b) => a.days - b.days)
+
+    // Push: documents expiring (titles only — never contents).
+    if (soon.length) {
+      const first = soon[0]
+      await pushToFamily(fam.family_id, {
+        title: soon.length === 1 ? 'A document expires soon' : `${soon.length} documents expire soon`,
+        body: `${first.title || first.doc_type} — ${first.days} days${soon.length > 1 ? ` (+${soon.length - 1} more)` : ''}`,
+        tag: 'voyager-expiry',
+        url: '/'
+      }).catch(() => {})
+    }
+
+    // Push: packing nudge two days out, deep-linked to the packing screen.
+    try {
+      const { data: tripRows } = await supabase.from('trips')
+        .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
+      const inTwoDays = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
+      for (const row of (tripRows || [])) {
+        const t = row.payload
+        if (!t || t.deleted || t.startDate !== inTwoDays) continue
+        await pushToFamily(fam.family_id, {
+          title: `${t.destinationCity || 'Your trip'} in 2 days`,
+          body: 'Time to finish your packing list.',
+          tag: 'voyager-packing',
+          url: '/?view=packing'
+        }).catch(() => {})
+        break   // one nudge per family per day
+      }
+    } catch { /* best-effort */ }
+
+    // Push: travel day — a flight departing today, with its scheduled time.
+    try {
+      const { data: tripRows } = await supabase.from('trips')
+        .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
+      const today = new Date().toISOString().slice(0, 10)
+      for (const row of (tripRows || [])) {
+        const t = row.payload
+        if (!t || t.deleted) continue
+        const leg = (t.legs || []).find(l =>
+          (l.mode || 'flight') === 'flight' && l.number && (l.date || t.startDate) === today)
+        if (!leg) continue
+        let when = ''
+        try {
+          const st = await fetchFlight(leg.number, today)
+          const dep = st?.departure?.revised || st?.departure?.scheduled
+          if (dep) when = ` departs ${String(dep).slice(11, 16)}`
+        } catch { /* time is a bonus, not required */ }
+        await pushToFamily(fam.family_id, {
+          title: `Travel day — ${leg.number}`,
+          body: `${leg.from || ''} → ${leg.to || ''}${when}. Open Voyager for your leave-by time.`,
+          tag: 'voyager-travelday',
+          url: '/'
+        }).catch(() => {})
+        break   // one notice per family per day
+      }
+    } catch { /* best-effort */ }
 
     if (soon.length) {
       const rows = soon.map(d =>
@@ -76,6 +156,15 @@ export default async function handler(req, res) {
         await supabase.from('advisory_state').upsert(
           { family_id: fam.family_id, country_code: cc, fingerprint: adv.fingerprint, checked_at: Date.now() },
           { onConflict: 'family_id,country_code' })
+      }
+      if (changes.length) {
+        const c0 = changes[0]
+        await pushToFamily(fam.family_id, {
+          title: `Travel advice updated — ${c0.adv.country || c0.t.destinationCity}`,
+          body: c0.adv.changeDescription || c0.adv.levelLabel || 'The official advice has changed.',
+          tag: 'voyager-advisory',
+          url: '/'
+        }).catch(() => {})
       }
       if (changes.length) {
         const arows = changes.map(({ t, adv }) =>

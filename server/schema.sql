@@ -34,6 +34,19 @@ create table if not exists advisory_state (
 );
 alter table advisory_state enable row level security;
 
+-- Web Push subscriptions, one row per device that opted in. The endpoint is the
+-- push service URL issued by Apple/Google for that device.
+create table if not exists push_subs (
+  family_id  text   not null,
+  endpoint   text   not null,
+  sub        jsonb  not null,          -- full PushSubscription (endpoint + keys)
+  label      text,                     -- e.g. 'Amit's iPhone'
+  created_at bigint,
+  primary key (endpoint)
+);
+create index if not exists push_subs_family_idx on push_subs (family_id);
+alter table push_subs enable row level security;
+
 -- Lock the tables down: only the server (service-role key) may touch them.
 alter table documents enable row level security;
 alter table families  enable row level security;

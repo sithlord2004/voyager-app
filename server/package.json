@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
-    "resend": "^4.0.0"
+    "resend": "^4.0.0",
+    "web-push": "^3.6.7"
   }
 }

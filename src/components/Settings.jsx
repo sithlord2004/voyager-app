@@ -8,6 +8,7 @@ import QRCode from 'qrcode'
 import { Icon } from './Icon.jsx'
 import ModalPortal from './ModalPortal.jsx'
 import { EMBASSY } from './Emergency.jsx'
+import { pushSupport, isSubscribed, enablePush, disablePush } from '../lib/push.js'
 
 const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
 const makeInitials = n => (n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?'
@@ -28,6 +29,9 @@ export default function Settings({ vaultKey, people = [], reload }) {
   const [meId, setMeId] = useState('')
   const [showAll, setShowAll] = useState(false)
   const [home, setHome] = useState('GB')
+  const [pushOn, setPushOn] = useState(false)
+  const [pushMsg, setPushMsg] = useState('')
+  const [pushBusy, setPushBusy] = useState(false)
   const [invite, setInvite] = useState(null)   // { mode: 'mine' | 'new' } when the modal is open
   const [newFam, setNewFam] = useState('')
   const [inviteUrl, setInviteUrl] = useState('')
@@ -42,6 +46,17 @@ export default function Settings({ vaultKey, people = [], reload }) {
   useEffect(() => { getSetting('myPersonId').then(v => setMeId(v || '')) }, [])
   useEffect(() => { getSetting('showAllTrips').then(v => setShowAll(!!v)) }, [])
   useEffect(() => { getSetting('homeCountry').then(h => setHome(h || 'GB')) }, [])
+
+  useEffect(() => { isSubscribed().then(setPushOn) }, [])
+
+  async function togglePush() {
+    setPushBusy(true); setPushMsg('')
+    try {
+      if (pushOn) { await disablePush(); setPushOn(false); setPushMsg('Notifications off for this device.') }
+      else { await enablePush(name || 'This device'); setPushOn(true); setPushMsg('✅ On — check for the test notification.') }
+    } catch (e) { setPushMsg('⚠️ ' + e.message) }
+    setPushBusy(false)
+  }
 
   async function changeHome(v) {
     setHome(v)
@@ -308,6 +323,23 @@ export default function Settings({ vaultKey, people = [], reload }) {
           </div>
         </div></ModalPortal>
       )}
+
+      <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
+        <h3><Icon name="bell" /> Notifications</h3>
+        <p className="desc">
+          Travel-day reminders (your leave-by time), documents expiring, and travel-safety changes —
+          sent to this device. {pushSupport().ok ? '' : pushSupport().reason}
+        </p>
+        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 4 }}>
+          <button className="btn" onClick={togglePush} disabled={pushBusy || !pushSupport().ok}>
+            {pushBusy ? 'Working…' : pushOn ? 'Turn off on this device' : 'Turn on notifications'}
+          </button>
+        </div>
+        {pushMsg && <div className="desc" style={{ marginTop: 12 }}>{pushMsg}</div>}
+        <p className="desc" style={{ marginTop: 10, fontSize: 11.5 }}>
+          Notifications say what needs attention, never the contents of a document. Needs Cloud sync on.
+        </p>
+      </div>
 
       <div className="card" style={{ maxWidth: 620, marginTop: 16 }}>
         <h3><Icon name="download" /> Encrypted backup</h3>
