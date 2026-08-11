@@ -6,10 +6,12 @@ import { fetchAdvisory } from '../lib/fcdo.js'
 import { pushToFamily } from '../lib/push.js'
 import { timezoneFor, nowIn } from '../lib/localtime.js'
 import { once } from '../lib/notifyLog.js'
+import { todayForecast } from '../lib/forecast.js'
 
 // When (in the traveller's own local time) the daily notifications should land.
 const BRIEFING_HOUR = 8
-const HOUR_WINDOW = 2   // 08:00–09:59 local, so an hourly job still catches it
+const EVENING_HOUR = 18   // night-before-a-flight nudge, ~6pm local
+const HOUR_WINDOW = 2     // a 2-hour window, so an hourly job still catches it
 
 // Scheduled departure time for a flight (best-effort; used to enrich the
 // travel-day notification).
@@ -197,14 +199,55 @@ export default async function handler(req, res) {
         const day = Math.round((new Date(today) - new Date(t.startDate)) / 86400000) + 1
         const total = Math.round((new Date(t.endDate) - new Date(t.startDate)) / 86400000) + 1
         const first = todays[0]
+        const wx = await todayForecast(t.destinationCity, local.date)
+        const plansLine = todays.length
+          ? `${first.time ? first.time + ' — ' : ''}${first.title}${todays.length > 1 ? ` (+${todays.length - 1} more)` : ''}`
+          : 'Nothing planned today.'
         // Once per day, keyed to the traveller's local date.
         await once(fam.family_id, 'briefing', local.date, () => pushToFamily(fam.family_id, {
           title: `Day ${day} of ${total} in ${t.destinationCity || 'your trip'}`,
-          body: todays.length
-            ? `${first.time ? first.time + ' — ' : ''}${first.title}${todays.length > 1 ? ` (+${todays.length - 1} more today)` : ''}`
-            : 'Nothing planned today.',
+          body: wx ? `${wx}. ${plansLine}` : plansLine,
           tag: 'voyager-today',
           url: '/'
+        }).catch(() => {}))
+        break
+      }
+    } catch { /* best-effort */ }
+
+    // Push: the evening before a flight — the nudge that actually helps, while
+    // there's still time to pack and find your documents.
+    try {
+      const { data: tripRows } = await supabase.from('trips')
+        .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
+      for (const row of (tripRows || [])) {
+        const t = row.payload
+        if (!t || t.deleted) continue
+
+        // Evening where the traveller is (or where they're departing from).
+        const tz = await timezoneFor(t.destinationCity, t.countryCode)
+        const local = nowIn(tz)
+        const inWindow = local.hour >= EVENING_HOUR && local.hour < EVENING_HOUR + HOUR_WINDOW
+        if (!force && !inWindow) break
+
+        // Is there a flight tomorrow, in the traveller's local reckoning?
+        const tomorrow = new Date(new Date(local.date + 'T12:00:00Z').getTime() + 86400000)
+          .toISOString().slice(0, 10)
+        const leg = (t.legs || []).find(l =>
+          (l.mode || 'flight') === 'flight' && l.number && (l.date || t.startDate) === tomorrow)
+        if (!leg) continue
+
+        let when = ''
+        try {
+          const st = await fetchFlight(leg.number, tomorrow)
+          const dep = st?.departure?.revised || st?.departure?.scheduled
+          if (dep) when = ` at ${String(dep).slice(11, 16)}`
+        } catch { /* time is a bonus */ }
+
+        await once(fam.family_id, 'nightbefore', local.date, () => pushToFamily(fam.family_id, {
+          title: `Flying tomorrow — ${leg.number}${when}`,
+          body: `${leg.from || ''} → ${leg.to || ''}. Good time to pack and check your documents.`,
+          tag: 'voyager-nightbefore',
+          url: '/?view=packing'
         }).catch(() => {}))
         break
       }
