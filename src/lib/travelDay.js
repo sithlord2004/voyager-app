@@ -36,13 +36,20 @@ export function findTravelDayFlight(trips = [], now = new Date()) {
   const today = localISODate(now)
   for (const trip of trips) {
     const legs = (trip.legs || []).filter(l => (l.mode || 'flight') === 'flight' && l.number)
-    for (const leg of legs) {
+    for (let i = 0; i < legs.length; i++) {
+      const leg = legs[i]
       const date = leg.date || trip.startDate
-      if (date === today) return { trip, leg, date }
+      // `outbound` = the first flight of the trip, i.e. the one you leave home
+      // for. Later legs start from wherever you're staying, which is a
+      // different journey to the airport.
+      if (date === today) return { trip, leg, date, legIndex: i, outbound: i === 0 }
     }
   }
   return null
 }
+
+// A stable key for remembering the journey time for one specific flight.
+export const legKey = (trip, leg, date) => `${trip?.id || ''}:${leg?.number || ''}:${date || ''}`
 
 // Build the day's milestones. `depISO`/`arrISO` are local ISO strings from the
 // flight feed; without them we can still show the ordered checklist, just

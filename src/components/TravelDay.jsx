@@ -3,8 +3,10 @@ import { getFlightStatus, statusChip } from '../lib/flights.js'
 import { getSetting, setSetting } from '../lib/db.js'
 import {
   findTravelDayFlight, legIsDomestic, buildTimeline, markProgress,
-  fmtClock, relativeTo, routeLabel, DEFAULT_MINUTES_TO_AIRPORT
+  fmtClock, relativeTo, routeLabel, legKey, DEFAULT_MINUTES_TO_AIRPORT
 } from '../lib/travelDay.js'
+import { toCode } from '../lib/airports.js'
+import { estimateToAirport } from '../lib/route.js'
 import { Icon } from './Icon.jsx'
 
 // The day-of-travel companion. Only renders when a flight departs today.
@@ -14,6 +16,9 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
   const [mins, setMins] = useState(DEFAULT_MINUTES_TO_AIRPORT)
   const [editing, setEditing] = useState(false)
   const [now, setNow] = useState(new Date())
+  const [addr, setAddr] = useState('')
+  const [estimating, setEstimating] = useState(false)
+  const [estMsg, setEstMsg] = useState('')
 
   // Tick every 30s so countdowns stay honest without being wasteful.
   useEffect(() => {
@@ -21,7 +26,31 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
     return () => clearInterval(id)
   }, [])
 
-  useEffect(() => { getSetting('minutesToAirport').then(v => setMins(v || DEFAULT_MINUTES_TO_AIRPORT)) }, [])
+  // The journey to the airport differs per flight: leaving home for the
+  // outbound, leaving your hotel/Airbnb for the return. So we remember a time
+  // per flight, falling back to your usual home-to-airport figure.
+  useEffect(() => {
+    if (!found) return
+    let off = false
+    ;(async () => {
+      const [byLeg, home] = await Promise.all([
+        getSetting('airportMinutesByLeg'), getSetting('minutesToAirport')
+      ])
+      const saved = byLeg?.[legKey(found.trip, found.leg, found.date)]
+      if (!off) setMins(saved ?? home ?? DEFAULT_MINUTES_TO_AIRPORT)
+
+      // Pre-fill the address box: whatever was used last for this flight, or
+      // for a return leg, the place you're staying.
+      const addrs = await getSetting('airportAddrByLeg')
+      const savedAddr = addrs?.[legKey(found.trip, found.leg, found.date)]
+      const stay = (found.trip.stays || [])[0]
+      const guess = !found.outbound && stay?.name
+        ? `${stay.name}, ${found.trip.destinationCity || ''}`.replace(/, $/, '')
+        : ''
+      if (!off) setAddr(savedAddr || guess)
+    })()
+    return () => { off = true }
+  }, [found?.leg?.number, found?.date]) // eslint-disable-line
 
   useEffect(() => {
     if (!found) return
@@ -35,11 +64,37 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
   async function saveMins(v) {
     const n = Math.max(0, Math.min(240, Number(v) || 0))
     setMins(n)
-    await setSetting('minutesToAirport', n)
+    if (!found) return
+    // Remember it for this specific flight…
+    const byLeg = (await getSetting('airportMinutesByLeg')) || {}
+    byLeg[legKey(found.trip, found.leg, found.date)] = n
+    await setSetting('airportMinutesByLeg', byLeg)
+    // …and, for the flight you leave home for, update the usual default too.
+    if (found.outbound) await setSetting('minutesToAirport', n)
+  }
+
+  // Look the address up and suggest a journey time (free-flow driving + a
+  // small allowance). The user can still type over it.
+  async function estimate() {
+    if (!found || !addr.trim()) return
+    setEstimating(true); setEstMsg('Looking up…')
+    try {
+      const r = await estimateToAirport(addr, toCode(found.leg.from))
+      if (r.error) { setEstMsg('⚠️ ' + r.error) }
+      else {
+        await saveMins(r.suggested)
+        const addrs = (await getSetting('airportAddrByLeg')) || {}
+        addrs[legKey(found.trip, found.leg, found.date)] = addr.trim()
+        await setSetting('airportAddrByLeg', addrs)
+        setEstMsg(`≈${r.drive} min drive → set to ${r.suggested} min (allows for traffic and parking).`)
+      }
+    } catch { setEstMsg('⚠️ Couldn’t reach the mapping service — you may be offline.') }
+    setEstimating(false)
   }
 
   if (!found) return null
-  const { trip, leg } = found
+  const { trip, leg, outbound } = found
+  const fromWhere = outbound ? 'home' : (trip.destinationCity || 'where you’re staying')
 
   const dep = status?.departure, arr = status?.arrival
   // A revised time (delay) moves the whole day, which is the point.
@@ -112,16 +167,24 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
       <div className="td-foot">
         {editing ? (
           <label className="td-mins">
-            Journey to the airport
+            {`Journey from ${fromWhere} to ${toCode(leg.from) || 'the airport'}`}
             <span>
               <input type="number" min="0" max="240" value={mins}
                 onChange={e => saveMins(e.target.value)} /> min
               <button className="mini" onClick={() => setEditing(false)}>Done</button>
             </span>
+            <span className="td-est">
+              <input value={addr} onChange={e => setAddr(e.target.value)}
+                placeholder={outbound ? 'Your address…' : 'Where you’re staying…'} />
+              <button className="mini" onClick={estimate} disabled={estimating || !addr.trim()}>
+                {estimating ? 'Estimating…' : 'Estimate'}
+              </button>
+            </span>
+            {estMsg && <small className="td-est-msg">{estMsg}</small>}
           </label>
         ) : (
           <button className="mini" onClick={() => setEditing(true)}>
-            Airport is {mins} min away · adjust
+            {mins} min from {fromWhere} to {toCode(leg.from) || 'the airport'} · adjust
           </button>
         )}
         <div className="td-actions">
