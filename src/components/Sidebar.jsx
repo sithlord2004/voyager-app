@@ -19,7 +19,7 @@ function initials(name) {
   return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase()
 }
 
-export default function Sidebar({ view, setView, onLock }) {
+export default function Sidebar({ view, setView, onLock, onAsk }) {
   const [name, setName] = useState('')
   useEffect(() => { getSetting('displayName').then(n => setName(n || '')) }, [])
 
@@ -38,6 +38,10 @@ export default function Sidebar({ view, setView, onLock }) {
           <div className="logo">🧭</div>
           <div><h1>Voyager</h1><span>TRAVEL HUB</span></div>
         </div>
+        <button className="nav-item" onClick={onAsk}>
+          <span className="ico"><Icon name="sparkles" size={20} /></span>
+          <span className="nav-text">Ask Voyager</span>
+        </button>
         {[...PRIMARY, ...SECONDARY].map(NavBtn)}
         <button className="nav-item lock-out" onClick={onLock}>
           <span className="ico"><Icon name="lock" size={20} /></span>
@@ -53,6 +57,9 @@ export default function Sidebar({ view, setView, onLock }) {
       <header className="mtop">
         <div className="mbrand"><span className="mlogo">🧭</span> Voyager</div>
         <div className="mtop-actions">
+          <button className="m-iconbtn" onClick={onAsk} aria-label="Ask Voyager">
+            <Icon name="sparkles" size={20} />
+          </button>
           {SECONDARY.map(([id, label]) => (
             <button key={id} className={'m-iconbtn' + (view === id ? ' active' : '')} onClick={() => setView(id)} aria-label={label}>
               <Icon name={ICON[id]} size={20} />

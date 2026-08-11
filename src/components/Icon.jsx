@@ -46,6 +46,8 @@ const ICONS = {
   doc: <><path d="M7 3.5h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1Z" /><path d="M13.5 3.5V8h4.5" /><path d="M9 13h6M9 16.5h6" /></>,
   idcard: <><rect x="3.5" y="5.5" width="17" height="13" rx="2.5" /><circle cx="8.5" cy="11" r="1.9" /><path d="M5.6 15.4c.4-1.3 1.5-2 2.9-2s2.5.7 2.9 2" /><path d="M14 10h4M14 13.5h3" /></>,
   ticket: <><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h13A1.5 1.5 0 0 1 20 8.5v2a1.8 1.8 0 0 0 0 3.4v1.6A1.5 1.5 0 0 1 18.5 17h-13A1.5 1.5 0 0 1 4 15.5v-1.6a1.8 1.8 0 0 0 0-3.4Z" /><path d="M14 7v10" /></>,
+  mic: <><rect x="9.5" y="3" width="5" height="10" rx="2.5" /><path d="M6 11a6 6 0 0 0 12 0" /><path d="M12 17v3.5M9 20.5h6" /></>,
+  sparkles: <><path d="M11 3.5 12.3 7 15.8 8.3 12.3 9.6 11 13 9.7 9.6 6.2 8.3 9.7 7 11 3.5Z" /><path d="M17.5 13.5 18.2 15.4 20 16 18.2 16.7 17.5 18.5 16.8 16.7 15 16 16.8 15.4 17.5 13.5Z" /></>,
   train: <><rect x="6" y="4" width="12" height="12" rx="3" /><path d="M6 11h12" /><circle cx="9" cy="13.5" r="0.6" fill="currentColor" stroke="none" /><circle cx="15" cy="13.5" r="0.6" fill="currentColor" stroke="none" /><path d="m8 20 2-2M16 20l-2-2" /></>
 }
 

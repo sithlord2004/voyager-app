@@ -13,6 +13,7 @@ import Settings from './components/Settings.jsx'
 import Help from './components/Help.jsx'
 import { versionLabel } from './lib/version.js'
 import ModalPortal from './components/ModalPortal.jsx'
+import Ask from './components/Ask.jsx'
 
 export default function App() {
   const [vaultKey, setVaultKey] = useState(null)   // in-memory only; null = locked
@@ -32,6 +33,7 @@ export default function App() {
   // An invite link (#invite=...) captured on load — offered once the vault is unlocked.
   const [invite, setInvite] = useState(() => readInviteFromHash())
   const [joining, setJoining] = useState('')
+  const [asking, setAsking] = useState(false)   // Ask Voyager panel
 
   async function acceptInvite() {
     setJoining('Joining…')
@@ -71,9 +73,9 @@ export default function App() {
   }, [])
 
   const reload = useCallback(async () => {
-    const [people, trips, documents, packing, myPersonId, showAllTrips] = await Promise.all([
+    const [people, trips, documents, packing, plans, myPersonId, showAllTrips] = await Promise.all([
       db.people.toArray(), db.trips.toArray(), db.documents.toArray(), db.packing.toArray(),
-      getSetting('myPersonId'), getSetting('showAllTrips')
+      db.plans.toArray(), getSetting('myPersonId'), getSetting('showAllTrips')
     ])
     const liveTrips = trips.filter(t => !t.deleted)
     // Per-traveller visibility: if this device is a specific person and "show all"
@@ -95,7 +97,8 @@ export default function App() {
       allTripCount: liveTrips.length,
       hiddenTripCount: liveTrips.length - visibleTrips.length,
       documents: visibleDocuments,
-      packing: visiblePacking
+      packing: visiblePacking,
+      plans: plans.filter(p => !p.deleted)
     })
   }, [])
 
@@ -174,7 +177,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar view={view} setView={setView} onLock={() => { setVaultKey(null); setData(null) }} />
+      <Sidebar view={view} setView={setView} onAsk={() => setAsking(true)} onLock={() => { setVaultKey(null); setData(null) }} />
       <main className="main" onTouchStart={ptrStart} onTouchMove={ptrMove} onTouchEnd={ptrEnd}>
         {(pull > 4 || refreshing) && (
           <div className="ptr-banner">{refreshing ? '↻ Refreshing…' : pull >= PTR_THRESH ? 'Release to refresh ↑' : 'Pull to refresh ↓'}</div>
@@ -188,6 +191,8 @@ export default function App() {
         {view === 'help' && <Help />}
         <footer className="app-footer">Voyager · {versionLabel()}</footer>
       </main>
+
+      {asking && <Ask data={data} setView={setView} onClose={() => setAsking(false)} />}
 
       {invite && (
         <ModalPortal>

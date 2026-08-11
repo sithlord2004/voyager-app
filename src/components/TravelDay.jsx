@@ -8,6 +8,7 @@ import {
 import { toCode } from '../lib/airports.js'
 import { estimateToAirport } from '../lib/route.js'
 import { Icon } from './Icon.jsx'
+import FlightRadar from './FlightRadar.jsx'
 
 // The day-of-travel companion. Only renders when a flight departs today.
 export default function TravelDay({ trips = [], setView, refreshKey }) {
@@ -19,6 +20,7 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
   const [addr, setAddr] = useState('')
   const [estimating, setEstimating] = useState(false)
   const [estMsg, setEstMsg] = useState('')
+  const [radar, setRadar] = useState(false)
 
   // Tick every 30s so countdowns stay honest without being wasteful.
   useEffect(() => {
@@ -188,11 +190,13 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
           </button>
         )}
         <div className="td-actions">
+          <button className="mini" onClick={() => setRadar(true)}>Track flight</button>
           <button className="mini" onClick={() => setView?.('vault')}>Documents</button>
           <button className="mini" onClick={() => setView?.('packing')}>Packing</button>
           <button className="mini" onClick={() => setView?.('emergency')}>At {trip.destinationCity || 'destination'}</button>
         </div>
       </div>
+      {radar && <FlightRadar leg={leg} status={status} onClose={() => setRadar(false)} />}
     </div>
   )
 }
