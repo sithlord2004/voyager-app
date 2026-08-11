@@ -419,7 +419,7 @@ iframe.viewer-media{height:70vh}
 .file-name{font-size:12px;color:var(--text-3)}
 .file-row input{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);outline:none;font-family:inherit}
 .file-row input:focus{border-color:var(--brand)}
-.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.modal-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-top:18px}
 
 /* Settings switch */
 .switch-row{display:flex!important;align-items:center;justify-content:space-between;background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin-bottom:14px}
