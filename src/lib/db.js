@@ -28,7 +28,32 @@ db.version(4).stores({
   people: 'id, name, dirty, updatedAt'
 })
 
+// v5 adds sync tracking to packing, so lists and tick-offs move between devices.
+db.version(5).stores({
+  packing: 'id, tripId, category, dirty, updatedAt'
+})
+
 export const newId = () => 'x' + crypto.randomUUID().slice(0, 12)
+
+// ---- Packing helpers (all mark the row dirty so it syncs) ----
+export async function savePacking(item) {
+  const rec = { ...item, id: item.id || newId(), updatedAt: Date.now(), dirty: 1 }
+  await db.packing.put(rec)
+  return rec
+}
+export async function savePackingMany(items) {
+  const now = Date.now()
+  const recs = items.map(i => ({ ...i, id: i.id || newId(), updatedAt: now, dirty: 1 }))
+  await db.packing.bulkPut(recs)
+  return recs
+}
+export async function updatePacking(id, patch) {
+  await db.packing.update(id, { ...patch, updatedAt: Date.now(), dirty: 1 })
+}
+// Soft-delete so the removal reaches other devices too.
+export async function deletePacking(id) {
+  await db.packing.update(id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
+}
 
 // Create or update a document and mark it dirty for the next sync.
 export async function saveDocument(doc) {

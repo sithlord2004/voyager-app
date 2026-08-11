@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { db, newId, getSetting, setSetting } from '../lib/db.js'
+import { db, newId, getSetting, setSetting, savePacking, savePackingMany, updatePacking, deletePacking } from '../lib/db.js'
 import { Icon } from './Icon.jsx'
 import { PRESETS } from '../lib/packingPresets.js'
 
@@ -40,21 +40,21 @@ export default function Packing({ trips = [], packing = [], reload }) {
   function flash(t) { setMsg(t); setTimeout(() => setMsg(''), 2600) }
   async function persistLists(next) { setLists(next); await setSetting('packingLists', next) }
 
-  async function toggle(item) { await db.packing.update(item.id, { checked: !item.checked }); reload() }
+  async function toggle(item) { await updatePacking(item.id, { checked: !item.checked }); reload() }
   async function addItem() {
     const nm = name.trim(); if (!nm || !activeId) return
-    await db.packing.add({ id: newId(), tripId: activeId, category: cat, name: nm, checked: false, source: 'manual' })
+    await savePacking({ tripId: activeId, category: cat, name: nm, checked: false, source: 'manual' })
     setName('')
     reload()
   }
-  async function removeItem(id) { await db.packing.delete(id); reload() }
+  async function removeItem(id) { await deletePacking(id); reload() }
 
   async function applyList(list, srcLabel) {
     if (!list?.length || !activeId) return
     const existing = new Set(items.map(i => (i.category + '|' + i.name).toLowerCase()))
     const toAdd = list.filter(([c, nm]) => nm && !existing.has((c + '|' + nm).toLowerCase()))
-      .map(([c, nm]) => ({ id: newId(), tripId: activeId, category: c, name: nm, checked: false, source: 'preset' }))
-    if (toAdd.length) await db.packing.bulkAdd(toAdd)
+      .map(([c, nm]) => ({ tripId: activeId, category: c, name: nm, checked: false, source: 'preset' }))
+    if (toAdd.length) await savePackingMany(toAdd)
     reload()
     flash(toAdd.length ? `✅ Added ${toAdd.length} item${toAdd.length === 1 ? '' : 's'} from ${srcLabel}` : `Nothing new to add from ${srcLabel}`)
   }
@@ -84,7 +84,7 @@ export default function Packing({ trips = [], packing = [], reload }) {
   async function deleteList() {
     if (!activeList) return
     if (!window.confirm(`Delete “${activeList.name}” and its items?`)) return
-    for (const r of packing.filter(p => p.tripId === activeId)) await db.packing.delete(r.id)
+    for (const r of packing.filter(p => p.tripId === activeId)) await deletePacking(r.id)
     const next = lists.filter(l => l.id !== activeId)
     await persistLists(next)
     setActiveId(trips[0]?.id || next[0]?.id || '')

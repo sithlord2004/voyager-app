@@ -34,6 +34,19 @@ create table if not exists advisory_state (
 );
 alter table advisory_state enable row level security;
 
+-- Packing list items, so lists and tick-offs sync across the family (and the
+-- reminder can tell whether you've actually finished packing).
+create table if not exists packing (
+  family_id  text    not null,
+  id         text    not null,
+  updated_at bigint  not null,
+  deleted    boolean not null default false,
+  payload    jsonb   not null,
+  primary key (family_id, id)
+);
+create index if not exists packing_sync_idx on packing (family_id, updated_at);
+alter table packing enable row level security;
+
 -- Web Push subscriptions, one row per device that opted in. The endpoint is the
 -- push service URL issued by Apple/Google for that device.
 create table if not exists push_subs (

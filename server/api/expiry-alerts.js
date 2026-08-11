@@ -78,9 +78,22 @@ export default async function handler(req, res) {
       for (const row of (tripRows || [])) {
         const t = row.payload
         if (!t || t.deleted || t.startDate !== inTwoDays) continue
+
+        // How far along is the packing list for this trip? (Packing syncs, so
+        // we can skip the nudge entirely when everything's already ticked off.)
+        const { data: packRows } = await supabase.from('packing')
+          .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
+        const items = (packRows || []).map(r => r.payload)
+          .filter(p => p && !p.deleted && p.tripId === t.id)
+        const total = items.length
+        const done = items.filter(p => p.checked).length
+        if (total > 0 && done >= total) break   // already packed — say nothing
+
         await pushToFamily(fam.family_id, {
           title: `${t.destinationCity || 'Your trip'} in 2 days`,
-          body: 'Time to finish your packing list.',
+          body: total
+            ? `${done} of ${total} packed — finish your list.`
+            : 'Time to start your packing list.',
           tag: 'voyager-packing',
           url: '/?view=packing'
         }).catch(() => {})

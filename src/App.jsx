@@ -87,7 +87,8 @@ export default function App() {
     // (whose "tripId" is a list id, not a trip id) are unaffected.
     const hiddenTripIds = new Set(liveTrips.filter(t => !visibleTrips.includes(t)).map(t => t.id))
     const visibleDocuments = hiddenTripIds.size ? documents.filter(d => !d.tripId || !hiddenTripIds.has(d.tripId)) : documents
-    const visiblePacking = hiddenTripIds.size ? packing.filter(k => !hiddenTripIds.has(k.tripId)) : packing
+    const livePacking = packing.filter(k => !k.deleted)
+    const visiblePacking = hiddenTripIds.size ? livePacking.filter(k => !hiddenTripIds.has(k.tripId)) : livePacking
     setData({
       people: people.filter(p => !p.deleted),
       trips: visibleTrips,

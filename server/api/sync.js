@@ -42,7 +42,7 @@ export default async function handler(req, res) {
   if (auth !== 'Bearer ' + process.env.SYNC_TOKEN) return res.status(401).json({ error: 'Unauthorized' })
 
   const body = await readJson(req)
-  const { familyId, since = 0, documents = [], trips = [], people = [], paginate = false } = body || {}
+  const { familyId, since = 0, documents = [], trips = [], people = [], packing = [], paginate = false } = body || {}
   if (!familyId) return res.status(400).json({ error: 'familyId required' })
 
   // 1) Upsert incoming (already-encrypted) docs.
@@ -87,6 +87,19 @@ export default async function handler(req, res) {
     if (error) return res.status(500).json({ error: error.message })
   }
 
+  // 1d) Upsert incoming packing items.
+  if (packing.length) {
+    const rows = packing.map(k => ({
+      family_id: familyId,
+      id: k.id,
+      updated_at: k.updatedAt || Date.now(),
+      deleted: !!k.deleted,
+      payload: k
+    }))
+    const { error } = await supabase.from('packing').upsert(rows, { onConflict: 'family_id,id' })
+    if (error) return res.status(500).json({ error: error.message })
+  }
+
   // 2) Return changes since `since`. When the client opts into pagination, cap the
   //    document response by accumulated size so a big backlog can't blow past the
   //    serverless response-size limit (it just comes down over several pages).
@@ -119,6 +132,10 @@ export default async function handler(req, res) {
     .from('people').select('payload, updated_at').eq('family_id', familyId).gt('updated_at', since)
   if (peopleErr) return res.status(500).json({ error: peopleErr.message })
 
+  const { data: packData, error: packErr } = await supabase
+    .from('packing').select('payload, updated_at').eq('family_id', familyId).gt('updated_at', since)
+  if (packErr) return res.status(500).json({ error: packErr.message })
+
   const documentsOut = docRows.map(r => ({ ...r.payload, updatedAt: Number(r.updated_at) }))
   const cursor = documentsOut.length ? documentsOut[documentsOut.length - 1].updatedAt : since
 
@@ -126,6 +143,7 @@ export default async function handler(req, res) {
     documents: documentsOut,
     trips: (tripData || []).map(r => ({ ...r.payload, updatedAt: Number(r.updated_at) })),
     people: (peopleData || []).map(r => ({ ...r.payload, updatedAt: Number(r.updated_at) })),
+    packing: (packData || []).map(r => ({ ...r.payload, updatedAt: Number(r.updated_at) })),
     more, cursor,
     serverTime: Date.now()
   })
