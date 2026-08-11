@@ -1,5 +1,4 @@
 {
-  "_comment": "Vercel's Hobby plan runs crons once a day. The job is safe to call HOURLY (it records what it has already sent, so nothing repeats) — which is what lets the morning briefing land at ~8am in the traveller's own timezone. On Hobby, point a free external scheduler at /api/expiry-alerts?key=YOUR_CRON_SECRET every hour; on Pro, change the schedule below to '0 * * * *'.",
   "crons": [
     { "path": "/api/expiry-alerts", "schedule": "0 8 * * *" }
   ]
