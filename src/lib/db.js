@@ -33,7 +33,25 @@ db.version(5).stores({
   packing: 'id, tripId, category, dirty, updatedAt'
 })
 
+// v6 adds day-by-day plans (Trip Mode): what you're doing on each day.
+db.version(6).stores({
+  plans: 'id, tripId, date, dirty, updatedAt'
+})
+
 export const newId = () => 'x' + crypto.randomUUID().slice(0, 12)
+
+// ---- Day plan helpers (dirty so they sync to the family) ----
+export async function savePlan(plan) {
+  const rec = { ...plan, id: plan.id || newId(), updatedAt: Date.now(), dirty: 1 }
+  await db.plans.put(rec)
+  return rec
+}
+export async function updatePlan(id, patch) {
+  await db.plans.update(id, { ...patch, updatedAt: Date.now(), dirty: 1 })
+}
+export async function deletePlan(id) {
+  await db.plans.update(id, { deleted: 1, dirty: 1, updatedAt: Date.now() })
+}
 
 // ---- Packing helpers (all mark the row dirty so it syncs) ----
 export async function savePacking(item) {

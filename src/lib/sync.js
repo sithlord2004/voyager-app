@@ -57,7 +57,7 @@ export async function syncNow() {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.token },
-      body: JSON.stringify({ familyId: cfg.familyId, since, documents: [], trips: [], people: [], packing: [], ...body })
+      body: JSON.stringify({ familyId: cfg.familyId, since, documents: [], trips: [], people: [], packing: [], plans: [], ...body })
     })
     if (!res.ok) {
       // Surface the server's reason (e.g. a database error) instead of a bare status.
@@ -78,6 +78,7 @@ export async function syncNow() {
     pulled += await mergeInto('trips', r.trips || [])
     pulled += await mergeInto('people', r.people || [])
     pulled += await mergeInto('packing', r.packing || [])
+    pulled += await mergeInto('plans', r.plans || [])
     serverTime = r.serverTime || serverTime
     if (r.more && typeof r.cursor === 'number' && r.cursor > cursor) { cursor = r.cursor; continue }
     break
@@ -136,6 +137,7 @@ export async function syncNow() {
   await pushTable('people')      // people & trips first so owners exist before documents
   await pushTable('trips')
   await pushTable('packing')
+  await pushTable('plans')
   await pushTable('documents')
 
   await setSyncConfig({ ...cfg, lastSync: serverTime })

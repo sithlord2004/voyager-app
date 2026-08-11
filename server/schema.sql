@@ -47,6 +47,29 @@ create table if not exists packing (
 create index if not exists packing_sync_idx on packing (family_id, updated_at);
 alter table packing enable row level security;
 
+-- Which notifications have already gone out today. Lets the alert job run
+-- hourly (so it can hit the right local time) without repeating itself.
+create table if not exists notify_log (
+  family_id text   not null,
+  kind      text   not null,          -- 'briefing' | 'travelday' | 'packing' | 'expiry'
+  day       text   not null,          -- YYYY-MM-DD (local to the traveller for the briefing)
+  sent_at   bigint,
+  primary key (family_id, kind, day)
+);
+alter table notify_log enable row level security;
+
+-- Day-by-day plans for a trip (Trip Mode), shared across the family.
+create table if not exists plans (
+  family_id  text    not null,
+  id         text    not null,
+  updated_at bigint  not null,
+  deleted    boolean not null default false,
+  payload    jsonb   not null,
+  primary key (family_id, id)
+);
+create index if not exists plans_sync_idx on plans (family_id, updated_at);
+alter table plans enable row level security;
+
 -- Web Push subscriptions, one row per device that opted in. The endpoint is the
 -- push service URL issued by Apple/Google for that device.
 create table if not exists push_subs (

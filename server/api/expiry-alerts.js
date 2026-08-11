@@ -4,6 +4,12 @@ import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { fetchAdvisory } from '../lib/fcdo.js'
 import { pushToFamily } from '../lib/push.js'
+import { timezoneFor, nowIn } from '../lib/localtime.js'
+import { once } from '../lib/notifyLog.js'
+
+// When (in the traveller's own local time) the daily notifications should land.
+const BRIEFING_HOUR = 8
+const HOUR_WINDOW = 2   // 08:00–09:59 local, so an hourly job still catches it
 
 // Scheduled departure time for a flight (best-effort; used to enrich the
 // travel-day notification).
@@ -73,6 +79,8 @@ export default async function handler(req, res) {
   }
   if (fErr) return res.status(500).json({ error: fErr.message })
 
+  const utcDay = new Date().toISOString().slice(0, 10)
+
   let sent = 0
   for (const fam of families || []) {
     // Pull the owner id out of the JSON payload without dragging the (large,
@@ -115,14 +123,14 @@ export default async function handler(req, res) {
       // "Cesca’s passport" when we know the owner, otherwise just "Passport".
       const subject = owner ? `${owner}’s ${thing}` : thing.charAt(0).toUpperCase() + thing.slice(1)
       const others = due.length > 1 ? ` Plus ${due.length - 1} other document${due.length > 2 ? 's' : ''}.` : ''
-      await pushToFamily(fam.family_id, {
+      await once(fam.family_id, 'expiry', utcDay, () => pushToFamily(fam.family_id, {
         title: `${subject} expires ${when}`,
         body: (isPassport(first)
           ? 'Renew in good time — many countries need 6 months’ validity beyond your travel dates.'
           : `${first.days} days left.`) + others,
         tag: 'voyager-expiry',
         url: '/?view=vault'
-      }).catch(() => {})
+      }).catch(() => {}))
     }
 
     // Push: packing nudge two days out, deep-linked to the packing screen.
@@ -144,15 +152,61 @@ export default async function handler(req, res) {
         const done = items.filter(p => p.checked).length
         if (total > 0 && done >= total) break   // already packed — say nothing
 
-        await pushToFamily(fam.family_id, {
+        await once(fam.family_id, 'packing', utcDay, () => pushToFamily(fam.family_id, {
           title: `${t.destinationCity || 'Your trip'} in 2 days`,
           body: total
             ? `${done} of ${total} packed — finish your list.`
             : 'Time to start your packing list.',
           tag: 'voyager-packing',
           url: '/?view=packing'
-        }).catch(() => {})
+        }).catch(() => {}))
         break   // one nudge per family per day
+      }
+    } catch { /* best-effort */ }
+
+    // Push: morning briefing while a trip is under way — today's plans, or a
+    // quiet "day 3 of 6" if nothing's planned. Skipped on a flight day, since
+    // the travel-day notice below covers that better.
+    try {
+      const { data: tripRows } = await supabase.from('trips')
+        .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
+      const today = new Date().toISOString().slice(0, 10)
+      for (const row of (tripRows || [])) {
+        const t = row.payload
+        if (!t || t.deleted || !t.startDate || !t.endDate) continue
+        if (!(t.startDate <= today && today <= t.endDate)) continue
+
+        // Send at ~8am where they actually are, not where the server is. When
+        // forced ("check now") we ignore the clock entirely.
+        const tz = await timezoneFor(t.destinationCity, t.countryCode)
+        const local = nowIn(tz)
+        const inWindow = local.hour >= BRIEFING_HOUR && local.hour < BRIEFING_HOUR + HOUR_WINDOW
+        if (!force && !inWindow) break
+
+        // A flight today? Let the travel-day push handle it instead.
+        const flying = (t.legs || []).some(l =>
+          (l.mode || 'flight') === 'flight' && l.number && (l.date || t.startDate) === today)
+        if (flying) break
+
+        const { data: planRows } = await supabase.from('plans')
+          .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
+        const todays = (planRows || []).map(r => r.payload)
+          .filter(p => p && !p.deleted && p.tripId === t.id && p.date === today)
+          .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
+
+        const day = Math.round((new Date(today) - new Date(t.startDate)) / 86400000) + 1
+        const total = Math.round((new Date(t.endDate) - new Date(t.startDate)) / 86400000) + 1
+        const first = todays[0]
+        // Once per day, keyed to the traveller's local date.
+        await once(fam.family_id, 'briefing', local.date, () => pushToFamily(fam.family_id, {
+          title: `Day ${day} of ${total} in ${t.destinationCity || 'your trip'}`,
+          body: todays.length
+            ? `${first.time ? first.time + ' — ' : ''}${first.title}${todays.length > 1 ? ` (+${todays.length - 1} more today)` : ''}`
+            : 'Nothing planned today.',
+          tag: 'voyager-today',
+          url: '/'
+        }).catch(() => {}))
+        break
       }
     } catch { /* best-effort */ }
 
@@ -173,12 +227,12 @@ export default async function handler(req, res) {
           const dep = st?.departure?.revised || st?.departure?.scheduled
           if (dep) when = ` departs ${String(dep).slice(11, 16)}`
         } catch { /* time is a bonus, not required */ }
-        await pushToFamily(fam.family_id, {
+        await once(fam.family_id, 'travelday', utcDay, () => pushToFamily(fam.family_id, {
           title: `Travel day — ${leg.number}`,
           body: `${leg.from || ''} → ${leg.to || ''}${when}. Open Voyager for your leave-by time.`,
           tag: 'voyager-travelday',
           url: '/'
-        }).catch(() => {})
+        }).catch(() => {}))
         break   // one notice per family per day
       }
     } catch { /* best-effort */ }

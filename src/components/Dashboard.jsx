@@ -9,6 +9,7 @@ import { loadProfile } from '../lib/profile.js'
 import { toNationalityCodes, sourceFor, nationalityLabel } from '../lib/nationality.js'
 import { Icon } from './Icon.jsx'
 import TravelDay from './TravelDay.jsx'
+import TripMode from './TripMode.jsx'
 
 const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT']
 
@@ -175,6 +176,9 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
 
       <div className="grid dash">
         <TravelDay trips={trips} setView={setView} refreshKey={refreshKey} />
+        <TripMode trips={trips} refreshKey={refreshKey}
+          wx={cur ? { temp: cur.temperature_2m, icon: code[0] } : null}
+          sun={{ sunset: wx?.daily?.sunset?.[0]?.slice(11, 16) }} />
 
         <div className="hero">
           <div className="bgimg" />
