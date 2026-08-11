@@ -75,12 +75,26 @@ export default async function handler(req, res) {
 
   let sent = 0
   for (const fam of families || []) {
+    // Pull the owner id out of the JSON payload without dragging the (large,
+    // encrypted) document body along with it.
     const { data: docs } = await supabase
       .from('documents')
-      .select('doc_type, title, expiry_date')
+      .select('doc_type, title, expiry_date, personId:payload->>personId')
       .eq('family_id', fam.family_id)
       .eq('deleted', false)
       .not('expiry_date', 'is', null)
+
+    // Family member names, so an alert can say *whose* passport it is.
+    const nameById = {}
+    try {
+      const { data: peopleRows } = await supabase.from('people')
+        .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
+      for (const r of (peopleRows || [])) {
+        const p = r.payload
+        if (p?.id && p.name && !p.deleted) nameById[p.id] = p.name
+      }
+    } catch { /* names are a nicety */ }
+    const ownerOf = d => nameById[d.personId] || ''
 
     const soon = (docs || [])
       .map(d => ({ ...d, days: daysUntil(d.expiry_date) }))
@@ -96,13 +110,16 @@ export default async function handler(req, res) {
       const first = due[0]
       const months = Math.round(first.days / 30)
       const when = first.days >= 60 ? `in about ${months} months` : `in ${first.days} days`
+      const owner = ownerOf(first)
+      const thing = isPassport(first) ? 'passport' : (first.title || first.doc_type || 'document')
+      // "Cesca’s passport" when we know the owner, otherwise just "Passport".
+      const subject = owner ? `${owner}’s ${thing}` : thing.charAt(0).toUpperCase() + thing.slice(1)
+      const others = due.length > 1 ? ` Plus ${due.length - 1} other document${due.length > 2 ? 's' : ''}.` : ''
       await pushToFamily(fam.family_id, {
-        title: isPassport(first)
-          ? `Passport expires ${when}`
-          : (due.length === 1 ? 'A document expires soon' : `${due.length} documents expire soon`),
-        body: isPassport(first)
-          ? `${first.title || 'Passport'} — renew in good time; many countries need 6 months’ validity.`
-          : `${first.title || first.doc_type} — ${first.days} days${due.length > 1 ? ` (+${due.length - 1} more)` : ''}`,
+        title: `${subject} expires ${when}`,
+        body: (isPassport(first)
+          ? 'Renew in good time — many countries need 6 months’ validity beyond your travel dates.'
+          : `${first.days} days left.`) + others,
         tag: 'voyager-expiry',
         url: '/?view=vault'
       }).catch(() => {})
@@ -168,7 +185,7 @@ export default async function handler(req, res) {
 
     if (due.length && fam.alert_email && !force) {
       const rows = soon.map(d =>
-        `<tr><td>${d.title || d.doc_type}</td><td>${d.doc_type || ''}</td>` +
+        `<tr><td>${d.title || d.doc_type}</td><td>${ownerOf(d) || '—'}</td><td>${d.doc_type || ''}</td>` +
         `<td>${new Date(d.expiry_date).toLocaleDateString()}</td>` +
         `<td style="color:${d.days < 90 ? '#dc2626' : '#d97706'}">${d.days} days</td></tr>`
       ).join('')
@@ -179,7 +196,7 @@ export default async function handler(req, res) {
         subject: `✈️ ${soon.length} travel document(s) expiring soon`,
         html: `<h2>Documents needing attention</h2>
           <table cellpadding="8" style="border-collapse:collapse">
-            <tr><th align="left">Document</th><th align="left">Type</th><th align="left">Expires</th><th align="left">In</th></tr>
+            <tr><th align="left">Document</th><th align="left">Owner</th><th align="left">Type</th><th align="left">Expires</th><th align="left">In</th></tr>
             ${rows}
           </table>
           <p style="color:#64748b;font-size:13px">Remember: some countries require a passport valid 6 months beyond travel.</p>`
