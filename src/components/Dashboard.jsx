@@ -8,6 +8,7 @@ import { getAdvisory } from '../lib/advisory.js'
 import { loadProfile } from '../lib/profile.js'
 import { toNationalityCodes, sourceFor, nationalityLabel } from '../lib/nationality.js'
 import { Icon } from './Icon.jsx'
+import TravelDay from './TravelDay.jsx'
 
 const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT']
 
@@ -173,6 +174,8 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
       </div>
 
       <div className="grid dash">
+        <TravelDay trips={trips} setView={setView} refreshKey={refreshKey} />
+
         <div className="hero">
           <div className="bgimg" />
           <div className="toprow">
