@@ -8,6 +8,7 @@ import { Icon } from './Icon.jsx'
 import Postcard from './Postcard.jsx'
 import JourneyMap from './JourneyMap.jsx'
 import ModalPortal from './ModalPortal.jsx'
+import DayPlans from './DayPlans.jsx'
 
 // Display an endpoint consistently: flights as 3-letter codes, other modes as typed.
 const legEndpoint = (v, mode) => mode === 'flight' ? (toCode(v) || '?') : (v || '?')
@@ -38,7 +39,7 @@ function tripLegs(trip) {
   return []
 }
 
-function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap }) {
+function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap, onPlan }) {
   const [w, setW] = useState(null)
   const [confirmDel, setConfirmDel] = useState(false)
   useEffect(() => {
@@ -84,6 +85,7 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap }) {
       </div>
       <div className="countdown">{cd}</div>
       <div className="trip-actions">
+        <button className="icon-btn" title="Plan the days" onClick={() => onPlan(trip)}><Icon name="calendar" size={17} /></button>
         <button className="icon-btn" title="Journey map" onClick={() => onMap(trip)}><Icon name="map" size={17} /></button>
         <button className="icon-btn" title="Trip postcard" onClick={() => onPostcard(trip)}><Icon name="share" size={17} /></button>
         <button className="icon-btn" title="Edit trip" onClick={() => onEdit(trip)}><Icon name="edit" size={17} /></button>
@@ -103,6 +105,7 @@ export default function Trips({ trips, documents, people = [], reload, hiddenTri
   const [seed, setSeed] = useState(null)
   const [postcard, setPostcard] = useState(null)
   const [mapTrip, setMapTrip] = useState(null)
+  const [planTrip, setPlanTrip] = useState(null)
   async function onDelete(trip) {
     await deleteTrip(trip.id)
     reload?.()
@@ -127,7 +130,7 @@ export default function Trips({ trips, documents, people = [], reload, hiddenTri
         </div>
       )}
       {trips.map(t => (
-        <TripRow key={t.id} trip={t} onDelete={onDelete} onEdit={setEditing} onPostcard={setPostcard} onMap={setMapTrip} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
+        <TripRow key={t.id} trip={t} onDelete={onDelete} onEdit={setEditing} onPostcard={setPostcard} onMap={setMapTrip} onPlan={setPlanTrip} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
       ))}
       <div className="desc" style={{ marginTop: 8 }}>
         🟢 <b>forecast</b> = live forecast (trip within ~14 days) &nbsp;·&nbsp; 📅 <b>seasonal</b> = historical average for those dates
@@ -139,6 +142,20 @@ export default function Trips({ trips, documents, people = [], reload, hiddenTri
         onSaved={() => { setAdding(false); setEditing(null); setSeed(null); reload?.() }} />}
       {postcard && <Postcard trip={postcard} onClose={() => setPostcard(null)} />}
       {mapTrip && <JourneyMap trip={mapTrip} onClose={() => setMapTrip(null)} />}
+      {planTrip && (
+        <ModalPortal>
+          <div className="modal-backdrop" onClick={() => setPlanTrip(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+              <h3>Plan · {planTrip.destinationCity}</h3>
+              <p className="desc">Add what you're doing each day. It syncs to the family, and shows up as “Today” once the trip starts.</p>
+              <DayPlans trip={planTrip} />
+              <div className="modal-actions">
+                <button className="btn" onClick={() => { setPlanTrip(null); reload?.() }}>Done</button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   )
 }
