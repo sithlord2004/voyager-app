@@ -29,20 +29,48 @@ async function fetchFlight(number, date) {
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 const resend = new Resend(process.env.RESEND_API_KEY)
-const WARN_DAYS = 180
+// Passports get a full year's warning: many countries require six months'
+// validity beyond travel, and renewals take time. Everything else: six months.
+const PASSPORT_WINDOW = 365
+const OTHER_WINDOW = 180
+
+// The cron runs daily, so without this we'd nag every single day for months.
+// Instead we speak up only at these countdown milestones.
+const MILESTONES = [365, 270, 180, 120, 90, 60, 30, 14, 7, 1]
+
+const isPassport = d => /passport/i.test(d.doc_type || '')
+const windowFor = d => (isPassport(d) ? PASSPORT_WINDOW : OTHER_WINDOW)
 
 function daysUntil(dateStr) {
   return Math.round((new Date(dateStr) - new Date()) / 86400000)
 }
 
 export default async function handler(req, res) {
-  const ok = req.headers.authorization === 'Bearer ' + process.env.CRON_SECRET
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+  if (req.method === 'OPTIONS') return res.status(204).end()
+
+  const auth = req.headers.authorization || ''
+  const isCron = auth === 'Bearer ' + process.env.CRON_SECRET
     || (req.query && req.query.key === process.env.CRON_SECRET)
-  if (process.env.CRON_SECRET && !ok) {
+  // "Check now" from the app: authenticated with the sync token, scoped to one
+  // family, and it ignores the milestone schedule so you see the current state.
+  const manualFamily = auth === 'Bearer ' + process.env.SYNC_TOKEN ? (req.query?.familyId || '') : ''
+  const force = !!manualFamily
+
+  if (!force && process.env.CRON_SECRET && !isCron) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  const { data: families, error: fErr } = await supabase.from('families').select('*')
+  let families, fErr
+  if (force) {
+    // Use the family's alert row if it exists; otherwise push-only (no email).
+    const { data } = await supabase.from('families').select('*').eq('family_id', manualFamily).maybeSingle()
+    families = [data || { family_id: manualFamily, alert_email: null }]
+  } else {
+    ({ data: families, error: fErr } = await supabase.from('families').select('*'))
+  }
   if (fErr) return res.status(500).json({ error: fErr.message })
 
   let sent = 0
@@ -56,17 +84,27 @@ export default async function handler(req, res) {
 
     const soon = (docs || [])
       .map(d => ({ ...d, days: daysUntil(d.expiry_date) }))
-      .filter(d => d.days >= 0 && d.days <= WARN_DAYS)
+      .filter(d => d.days >= 0 && d.days <= windowFor(d))
       .sort((a, b) => a.days - b.days)
 
+    // Only the ones hitting a milestone today actually trigger an alert —
+    // unless this is a manual "check now", which reports whatever's in range.
+    const due = force ? soon : soon.filter(d => MILESTONES.includes(d.days))
+
     // Push: documents expiring (titles only — never contents).
-    if (soon.length) {
-      const first = soon[0]
+    if (due.length) {
+      const first = due[0]
+      const months = Math.round(first.days / 30)
+      const when = first.days >= 60 ? `in about ${months} months` : `in ${first.days} days`
       await pushToFamily(fam.family_id, {
-        title: soon.length === 1 ? 'A document expires soon' : `${soon.length} documents expire soon`,
-        body: `${first.title || first.doc_type} — ${first.days} days${soon.length > 1 ? ` (+${soon.length - 1} more)` : ''}`,
+        title: isPassport(first)
+          ? `Passport expires ${when}`
+          : (due.length === 1 ? 'A document expires soon' : `${due.length} documents expire soon`),
+        body: isPassport(first)
+          ? `${first.title || 'Passport'} — renew in good time; many countries need 6 months’ validity.`
+          : `${first.title || first.doc_type} — ${first.days} days${due.length > 1 ? ` (+${due.length - 1} more)` : ''}`,
         tag: 'voyager-expiry',
-        url: '/'
+        url: '/?view=vault'
       }).catch(() => {})
     }
 
@@ -128,7 +166,7 @@ export default async function handler(req, res) {
       }
     } catch { /* best-effort */ }
 
-    if (soon.length) {
+    if (due.length && fam.alert_email && !force) {
       const rows = soon.map(d =>
         `<tr><td>${d.title || d.doc_type}</td><td>${d.doc_type || ''}</td>` +
         `<td>${new Date(d.expiry_date).toLocaleDateString()}</td>` +
@@ -179,7 +217,7 @@ export default async function handler(req, res) {
           url: '/'
         }).catch(() => {})
       }
-      if (changes.length) {
+      if (changes.length && fam.alert_email && !force) {
         const arows = changes.map(({ t, adv }) =>
           `<tr><td>${adv.country || t.destinationCity}</td><td>${adv.levelLabel}</td><td>${adv.changeDescription || 'Advice updated'}</td></tr>`
         ).join('')

@@ -8,7 +8,7 @@ import QRCode from 'qrcode'
 import { Icon } from './Icon.jsx'
 import ModalPortal from './ModalPortal.jsx'
 import { EMBASSY } from './Emergency.jsx'
-import { pushSupport, isSubscribed, enablePush, disablePush, sendTestPush } from '../lib/push.js'
+import { pushSupport, isSubscribed, enablePush, disablePush, sendTestPush, checkDocumentsNow } from '../lib/push.js'
 
 const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
 const makeInitials = n => (n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?'
@@ -54,6 +54,15 @@ export default function Settings({ vaultKey, people = [], reload }) {
     try {
       if (pushOn) { await disablePush(); setPushOn(false); setPushMsg('Notifications off for this device.') }
       else { await enablePush(name || 'This device'); setPushOn(true); setPushMsg('✅ On — check for the test notification.') }
+    } catch (e) { setPushMsg('⚠️ ' + e.message) }
+    setPushBusy(false)
+  }
+
+  async function checkDocs() {
+    setPushBusy(true); setPushMsg('Checking your documents…')
+    try {
+      await checkDocumentsNow()
+      setPushMsg('Checked — if anything is expiring, a notification is on its way.')
     } catch (e) { setPushMsg('⚠️ ' + e.message) }
     setPushBusy(false)
   }
@@ -342,7 +351,10 @@ export default function Settings({ vaultKey, people = [], reload }) {
             {pushBusy ? 'Working…' : pushOn ? 'Turn off on this device' : 'Turn on notifications'}
           </button>
           {pushOn && (
-            <button className="btn ghost" onClick={testPush} disabled={pushBusy}>Send a test</button>
+            <>
+              <button className="btn ghost" onClick={testPush} disabled={pushBusy}>Send a test</button>
+              <button className="btn ghost" onClick={checkDocs} disabled={pushBusy}>Check documents now</button>
+            </>
           )}
         </div>
         {pushMsg && <div className="desc" style={{ marginTop: 12 }}>{pushMsg}</div>}

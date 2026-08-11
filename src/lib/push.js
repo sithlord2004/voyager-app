@@ -97,6 +97,21 @@ export async function sendTestPush() {
   return true
 }
 
+// Run the document/expiry check on the server right now and push the result,
+// ignoring the usual milestone schedule. Useful to see where you stand today.
+export async function checkDocumentsNow() {
+  const cfg = await getSyncConfig()
+  if (!cfg.endpoint || !cfg.token) throw new Error('Set up Cloud sync first.')
+  const url = `${cfg.endpoint.replace(/\/$/, '')}/expiry-alerts?familyId=${encodeURIComponent(cfg.familyId)}`
+  const res = await fetch(url, { headers: { Authorization: 'Bearer ' + cfg.token } })
+  if (!res.ok) {
+    let detail = ''
+    try { detail = (await res.json())?.error || '' } catch {}
+    throw new Error(detail || `Server said ${res.status}`)
+  }
+  return res.json()
+}
+
 // Stop notifications on this device.
 export async function disablePush() {
   const reg = await navigator.serviceWorker.ready
