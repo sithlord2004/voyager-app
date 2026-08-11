@@ -5,7 +5,7 @@ import { Resend } from 'resend'
 import { fetchAdvisory } from '../lib/fcdo.js'
 import { pushToFamily } from '../lib/push.js'
 import { timezoneFor, nowIn } from '../lib/localtime.js'
-import { once } from '../lib/notifyLog.js'
+import { once, alreadySent } from '../lib/notifyLog.js'
 import { todayForecast } from '../lib/forecast.js'
 
 // When (in the traveller's own local time) the daily notifications should land.
@@ -236,6 +236,9 @@ export default async function handler(req, res) {
           (l.mode || 'flight') === 'flight' && l.number && (l.date || t.startDate) === tomorrow)
         if (!leg) continue
 
+        // Check whether we'd even send before paying for a flight lookup —
+        // this job runs hourly, so fetching first would burn the API quota.
+        if (await alreadySent(fam.family_id, 'nightbefore', local.date)) break
         let when = ''
         try {
           const st = await fetchFlight(leg.number, tomorrow)
@@ -264,6 +267,7 @@ export default async function handler(req, res) {
         const leg = (t.legs || []).find(l =>
           (l.mode || 'flight') === 'flight' && l.number && (l.date || t.startDate) === today)
         if (!leg) continue
+        if (await alreadySent(fam.family_id, 'travelday', utcDay)) break
         let when = ''
         try {
           const st = await fetchFlight(leg.number, today)

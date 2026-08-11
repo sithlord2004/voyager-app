@@ -6,6 +6,9 @@ const READ = process.env.PUBLIC_READ_TOKEN
 const authorized = h => h === 'Bearer ' + AUTH || (READ && h === 'Bearer ' + READ)
 
 async function fetchStatus(number, date) {
+  // No key configured = live flight status is switched off. Return nothing
+  // rather than calling the provider, so it can't accrue usage or overage.
+  if (!process.env.AERODATABOX_KEY) return null
   const url = `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(number)}/${date}`
   const r = await fetch(url, {
     headers: {
