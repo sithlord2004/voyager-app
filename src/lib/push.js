@@ -87,6 +87,16 @@ export async function enablePush(label) {
   return true
 }
 
+// Fire a test notification to this family's devices. Re-sends the existing
+// subscription (harmless upsert) and asks the server to push straight back.
+export async function sendTestPush() {
+  const reg = await navigator.serviceWorker.ready
+  const sub = await reg.pushManager.getSubscription()
+  if (!sub) throw new Error('This device isn’t subscribed yet — turn notifications on first.')
+  await post({ subscription: sub.toJSON(), test: true })
+  return true
+}
+
 // Stop notifications on this device.
 export async function disablePush() {
   const reg = await navigator.serviceWorker.ready

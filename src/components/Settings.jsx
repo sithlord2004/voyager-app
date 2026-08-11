@@ -8,7 +8,7 @@ import QRCode from 'qrcode'
 import { Icon } from './Icon.jsx'
 import ModalPortal from './ModalPortal.jsx'
 import { EMBASSY } from './Emergency.jsx'
-import { pushSupport, isSubscribed, enablePush, disablePush } from '../lib/push.js'
+import { pushSupport, isSubscribed, enablePush, disablePush, sendTestPush } from '../lib/push.js'
 
 const PALETTE = ['#3b82f6', '#8b5cf6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#ef4444']
 const makeInitials = n => (n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?'
@@ -55,6 +55,13 @@ export default function Settings({ vaultKey, people = [], reload }) {
       if (pushOn) { await disablePush(); setPushOn(false); setPushMsg('Notifications off for this device.') }
       else { await enablePush(name || 'This device'); setPushOn(true); setPushMsg('✅ On — check for the test notification.') }
     } catch (e) { setPushMsg('⚠️ ' + e.message) }
+    setPushBusy(false)
+  }
+
+  async function testPush() {
+    setPushBusy(true); setPushMsg('Sending…')
+    try { await sendTestPush(); setPushMsg('Sent — it should arrive in a few seconds.') }
+    catch (e) { setPushMsg('⚠️ ' + e.message) }
     setPushBusy(false)
   }
 
@@ -334,6 +341,9 @@ export default function Settings({ vaultKey, people = [], reload }) {
           <button className="btn" onClick={togglePush} disabled={pushBusy || !pushSupport().ok}>
             {pushBusy ? 'Working…' : pushOn ? 'Turn off on this device' : 'Turn on notifications'}
           </button>
+          {pushOn && (
+            <button className="btn ghost" onClick={testPush} disabled={pushBusy}>Send a test</button>
+          )}
         </div>
         {pushMsg && <div className="desc" style={{ marginTop: 12 }}>{pushMsg}</div>}
         <p className="desc" style={{ marginTop: 10, fontSize: 11.5 }}>
