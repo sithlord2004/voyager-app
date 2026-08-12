@@ -241,8 +241,11 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
           <div className="fl-section">
             <h3 className="sec-h"><Icon name="plane" /> Upcoming flights</h3>
             {flightLegs.map((l, i) => {
-              const s = statuses[l.number + '_' + (l.date || next.startDate)]
+              const legDate = l.date || next.startDate
+              const s = statuses[l.number + '_' + legDate]
               const [cls, label] = s ? statusChip(s.status) : ['st-ontime', 'scheduled']
+              const dateLabel = new Date(legDate + 'T00:00')
+                .toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
               const dep = s?.departure, arr = s?.arrival
               const depTime = dep?.revised?.slice(11, 16) || dep?.scheduled?.slice(11, 16) || ''
               const arrTime = arr?.revised?.slice(11, 16) || arr?.scheduled?.slice(11, 16) || ''
@@ -254,6 +257,7 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
                     <span className="fl-no"><Icon name="plane" size={15} /> {l.number}{s?.airline ? ' · ' + s.airline : ''}</span>
                     <span className={'status-chip ' + cls}>{label}</span>
                   </div>
+                  <div className="fl-sub">{dateLabel}{l.seat ? ` · Seat ${l.seat}` : ''}</div>
                   <div className="fl-route">
                     <div className="ap">
                       <b>{toCode(dep?.airport || l.from) || '—'}</b>
@@ -270,8 +274,17 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
                 </div>
               )
             })}
-            {Object.keys(statuses).length === 0 &&
-              <div className="desc">Showing scheduled — live status needs the backend (Settings) and is available ~7 days out.</div>}
+            {Object.keys(statuses).length === 0 && (
+              <div className="desc">
+                {(() => {
+                  const soonest = Math.min(...flightLegs.map(l =>
+                    Math.round((new Date((l.date || next.startDate) + 'T00:00') - new Date()) / 86400000)))
+                  return soonest > 3
+                    ? `Live gates and times appear about 3 days before departure — ${soonest - 3} day${soonest - 3 === 1 ? '' : 's'} to go.`
+                    : 'Showing scheduled times — live status needs Cloud sync set up in Settings.'
+                })()}
+              </div>
+            )}
           </div>
         )}
 
