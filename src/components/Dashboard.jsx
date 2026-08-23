@@ -28,7 +28,7 @@ function Ring({ pct }) {
   )
 }
 
-export default function Dashboard({ trips, documents, people, packing = [], refreshKey, setView, vaultKey }) {
+export default function Dashboard({ trips, documents, people, packing = [], plans = [], refreshKey, setView, vaultKey, reload }) {
   // Brand-new install: no family added yet. Show a friendly welcome instead of
   // empty widgets, guiding the user to set up.
   const firstRun = (people?.length || 0) === 0 && (trips?.length || 0) === 0
@@ -176,7 +176,7 @@ export default function Dashboard({ trips, documents, people, packing = [], refr
 
       <div className="grid dash">
         <TravelDay trips={trips} setView={setView} refreshKey={refreshKey} />
-        <TripMode trips={trips} refreshKey={refreshKey}
+        <TripMode trips={trips} plans={plans} reload={reload} refreshKey={refreshKey}
           wx={cur ? { temp: cur.temperature_2m, icon: code[0] } : null}
           sun={{ sunset: wx?.daily?.sunset?.[0]?.slice(11, 16) }} />
 

@@ -9,6 +9,8 @@ import Postcard from './Postcard.jsx'
 import JourneyMap from './JourneyMap.jsx'
 import ModalPortal from './ModalPortal.jsx'
 import DayPlans from './DayPlans.jsx'
+import TripStory from './TripStory.jsx'
+import Collapsible from './Collapsible.jsx'
 
 // Display an endpoint consistently: flights as 3-letter codes, other modes as typed.
 const legEndpoint = (v, mode) => mode === 'flight' ? (toCode(v) || '?') : (v || '?')
@@ -39,7 +41,7 @@ function tripLegs(trip) {
   return []
 }
 
-function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap, onPlan }) {
+function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap, onPlan, onStory }) {
   const [w, setW] = useState(null)
   const [confirmDel, setConfirmDel] = useState(false)
   useEffect(() => {
@@ -85,6 +87,7 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap, onPlan }
       </div>
       <div className="countdown">{cd}</div>
       <div className="trip-actions">
+        <button className="icon-btn" title="Trip story (keepsake)" onClick={() => onStory(trip)}><Icon name="sparkles" size={17} /></button>
         <button className="icon-btn" title="Plan the days" onClick={() => onPlan(trip)}><Icon name="calendar" size={17} /></button>
         <button className="icon-btn" title="Journey map" onClick={() => onMap(trip)}><Icon name="map" size={17} /></button>
         <button className="icon-btn" title="Trip postcard" onClick={() => onPostcard(trip)}><Icon name="share" size={17} /></button>
@@ -98,7 +101,7 @@ function TripRow({ trip, docCount, onDelete, onEdit, onPostcard, onMap, onPlan }
   )
 }
 
-export default function Trips({ trips, documents, people = [], reload, hiddenTripCount = 0 }) {
+export default function Trips({ trips, documents, people = [], plans = [], reload, hiddenTripCount = 0 }) {
   const [importing, setImporting] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -106,10 +109,17 @@ export default function Trips({ trips, documents, people = [], reload, hiddenTri
   const [postcard, setPostcard] = useState(null)
   const [mapTrip, setMapTrip] = useState(null)
   const [planTrip, setPlanTrip] = useState(null)
+  const [storyTrip, setStoryTrip] = useState(null)
   async function onDelete(trip) {
     await deleteTrip(trip.id)
     reload?.()
   }
+  // Finished trips move into the Archive so upcoming travel stays at the top.
+  const todayISO = new Date().toISOString().slice(0, 10)
+  const upcoming = trips.filter(t => !t.endDate || t.endDate >= todayISO)
+  const past = trips.filter(t => t.endDate && t.endDate < todayISO)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate))
+
   async function revealHidden() {
     await setSetting('showAllTrips', 1)
     reload?.()
@@ -129,9 +139,20 @@ export default function Trips({ trips, documents, people = [], reload, hiddenTri
           <a onClick={revealHidden} style={{ cursor: 'pointer', fontWeight: 600 }}>Show all →</a>
         </div>
       )}
-      {trips.map(t => (
-        <TripRow key={t.id} trip={t} onDelete={onDelete} onEdit={setEditing} onPostcard={setPostcard} onMap={setMapTrip} onPlan={setPlanTrip} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
+      {upcoming.map(t => (
+        <TripRow key={t.id} trip={t} onDelete={onDelete} onEdit={setEditing} onPostcard={setPostcard} onMap={setMapTrip} onPlan={setPlanTrip} onStory={setStoryTrip} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
       ))}
+
+      {past.length > 0 && (
+        <Collapsible id="trips-archive" icon="map" title="Archive" badge={past.length}>
+          <p className="desc" style={{ marginTop: 0 }}>
+            Trips you've already taken. Open the ✦ button on any of them to make a trip story keepsake.
+          </p>
+          {past.map(t => (
+            <TripRow key={t.id} trip={t} onDelete={onDelete} onEdit={setEditing} onPostcard={setPostcard} onMap={setMapTrip} onPlan={setPlanTrip} onStory={setStoryTrip} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />
+          ))}
+        </Collapsible>
+      )}
       <div className="desc" style={{ marginTop: 8 }}>
         🟢 <b>forecast</b> = live forecast (trip within ~14 days) &nbsp;·&nbsp; 📅 <b>seasonal</b> = historical average for those dates
       </div>
@@ -142,13 +163,17 @@ export default function Trips({ trips, documents, people = [], reload, hiddenTri
         onSaved={() => { setAdding(false); setEditing(null); setSeed(null); reload?.() }} />}
       {postcard && <Postcard trip={postcard} onClose={() => setPostcard(null)} />}
       {mapTrip && <JourneyMap trip={mapTrip} onClose={() => setMapTrip(null)} />}
+      {storyTrip && (
+        <TripStory trip={storyTrip} plans={plans} people={people} onClose={() => setStoryTrip(null)} />
+      )}
+
       {planTrip && (
         <ModalPortal>
           <div className="modal-backdrop" onClick={() => setPlanTrip(null)}>
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
               <h3>Plan · {planTrip.destinationCity}</h3>
               <p className="desc">Add what you're doing each day. It syncs to the family, and shows up as “Today” once the trip starts.</p>
-              <DayPlans trip={planTrip} />
+              <DayPlans trip={planTrip} plans={plans} reload={reload} />
               <div className="modal-actions">
                 <button className="btn" onClick={() => { setPlanTrip(null); reload?.() }}>Done</button>
               </div>

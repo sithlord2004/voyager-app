@@ -5,7 +5,7 @@ import DayPlans from './DayPlans.jsx'
 // While you're away, the app leads with today rather than with planning.
 // Deliberately useful with no input at all: day X of Y, the weather, where
 // you're staying and what's next are all derived from the trip itself.
-export default function TripMode({ trips = [], refreshKey, wx, sun }) {
+export default function TripMode({ trips = [], plans = [], reload, refreshKey, wx, sun }) {
   const trip = useMemo(() => findActiveTrip(trips), [trips, refreshKey])
   const days = trip ? tripDays(trip) : null
   if (!trip || !days) return null
@@ -48,7 +48,7 @@ export default function TripMode({ trips = [], refreshKey, wx, sun }) {
         </div>
       )}
 
-      <DayPlans trip={trip} />
+      <DayPlans trip={trip} plans={plans} reload={reload} />
     </div>
   )
 }

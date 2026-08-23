@@ -1,24 +1,20 @@
 import { useEffect, useState } from 'react'
-import { db, savePlan, updatePlan, deletePlan } from '../lib/db.js'
+import { savePlan, updatePlan, deletePlan } from '../lib/db.js'
 import { tripDays, dayLabel, shortDay, dayNum, byTime, directionsUrl, isoDate } from '../lib/tripMode.js'
 import { Icon } from './Icon.jsx'
 
 // The day-by-day planner: a day strip plus that day's items. Shared by Trip Mode
 // (today, while you're away) and the Trips page (planning ahead), so both stay
 // in step and there's only one place to fix.
-export default function DayPlans({ trip, defaultDate, compact = false }) {
+// `plans` and `reload` come from the app's live data, so anything a family
+// member adds shows up on the next refresh instead of only after a restart.
+export default function DayPlans({ trip, plans = [], reload, defaultDate, compact = false }) {
   const days = trip ? tripDays(trip) : null
-  const [plans, setPlans] = useState([])
+  const tripPlans = plans.filter(p => !p.deleted && p.tripId === trip?.id)
   const [selected, setSelected] = useState(defaultDate || days?.dates?.[0] || isoDate())
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState({ time: '', title: '', note: '', place: '' })
 
-  async function load() {
-    if (!trip) return
-    const rows = await db.plans.where('tripId').equals(trip.id).toArray()
-    setPlans(rows.filter(p => !p.deleted))
-  }
-  useEffect(() => { load() }, [trip?.id]) // eslint-disable-line
   useEffect(() => {
     // Default to today when the trip is under way, otherwise its first day.
     const today = isoDate()
@@ -26,7 +22,7 @@ export default function DayPlans({ trip, defaultDate, compact = false }) {
   }, [trip?.id]) // eslint-disable-line
 
   if (!trip || !days) return null
-  const dayPlans = plans.filter(p => p.date === selected).sort(byTime)
+  const dayPlans = tripPlans.filter(p => p.date === selected).sort(byTime)
   const isToday = selected === isoDate()
   const whenWord = isToday ? 'today' : dayLabel(selected).toLowerCase()
 
@@ -38,10 +34,10 @@ export default function DayPlans({ trip, defaultDate, compact = false }) {
     })
     setDraft({ time: '', title: '', note: '', place: '' })
     setAdding(false)
-    load()
+    reload?.()
   }
-  async function remove(id) { await deletePlan(id); load() }
-  async function toggle(p) { await updatePlan(p.id, { done: !p.done }); load() }
+  async function remove(id) { await deletePlan(id); reload?.() }
+  async function toggle(p) { await updatePlan(p.id, { done: !p.done }); reload?.() }
 
   return (
     <>
@@ -50,7 +46,7 @@ export default function DayPlans({ trip, defaultDate, compact = false }) {
           <button key={d} className={'tm-day' + (d === selected ? ' on' : '') + (d === days.today ? ' now' : '')}
             onClick={() => setSelected(d)}>
             <span>{shortDay(d)}</span><b>{dayNum(d)}</b>
-            <i className={'tm-dot' + (plans.some(p => p.date === d) ? ' has' : '')} />
+            <i className={'tm-dot' + (tripPlans.some(p => p.date === d) ? ' has' : '')} />
           </button>
         ))}
       </div>
