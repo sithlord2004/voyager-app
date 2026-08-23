@@ -104,6 +104,15 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
   const arrISO = arr?.revised || arr?.scheduled || null
   const delayed = !!(dep?.revised && dep?.scheduled && dep.revised !== dep.scheduled)
 
+  // Once you've landed, the day is done — stop showing a live countdown for a
+  // flight that's already over. We allow a short grace period after arrival
+  // (bags, transfers), and fall back to a few hours after departure when we
+  // have no arrival time to go on.
+  const finishedAt = arrISO ? new Date(arrISO).getTime() + 90 * 60000
+    : depISO ? new Date(depISO).getTime() + 6 * 3600000
+    : null
+  if (finishedAt && now.getTime() > finishedAt) return null
+
   const items = markProgress(
     buildTimeline({ depISO, arrISO, domestic: legIsDomestic(leg), minutesToAirport: mins }),
     now
