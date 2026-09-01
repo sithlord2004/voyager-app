@@ -3,6 +3,7 @@ import { geocode, tripWeather, WMO, FLAGS } from '../lib/weather.js'
 import { daysUntil, createTrip, updateTrip, deleteTrip, setSetting } from '../lib/db.js'
 import { parseItinerarySmart, extractTextFromFile } from '../lib/itinerary.js'
 import { getSyncConfig } from '../lib/sync.js'
+import { getFlightStatus } from '../lib/flights.js'
 import { toCode } from '../lib/airports.js'
 import { Icon } from './Icon.jsx'
 import Postcard from './Postcard.jsx'
@@ -191,7 +192,7 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
   const [city, setCity] = useState(src?.destinationCity || '')
   const [start, setStart] = useState(src?.startDate || '')
   const [end, setEnd] = useState(src?.endDate || '')
-  const [legs, setLegs] = useState(seedLegs.length ? seedLegs.map(l => ({ date: l.date || '', from: l.from || '', to: l.to || '', mode: l.mode || 'flight', number: l.number || '', seat: l.seat || '' })) : [{ date: '', from: '', to: '', mode: 'flight', number: '', seat: '' }])
+  const [legs, setLegs] = useState(seedLegs.length ? seedLegs.map(l => ({ date: l.date || '', from: l.from || '', to: l.to || '', mode: l.mode || 'flight', number: l.number || '', seat: l.seat || '', depTime: l.depTime || '', arrTime: l.arrTime || '' })) : [{ date: '', from: '', to: '', mode: 'flight', number: '', seat: '' }])
   const [stays, setStays] = useState(src?.stays || [])
   const [travellerIds, setTravellerIds] = useState(src?.travellerIds || [])
   const [busy, setBusy] = useState(false)
@@ -201,6 +202,33 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
   const setLeg = (i, patch) => setLegs(legs.map((l, idx) => idx === i ? { ...l, ...patch } : l))
   const addLeg = () => setLegs([...legs, { date: '', from: '', to: '', mode: 'flight', number: '', seat: '' }])
   const removeLeg = i => setLegs(legs.filter((_, idx) => idx !== i))
+
+  // Fill a leg in from its flight number + date, so you only type the two
+  // things you actually know. `force` bypasses the usual quota-saving window,
+  // because this lookup is one you explicitly asked for.
+  const [lookingUp, setLookingUp] = useState(null)
+  const [lookupMsg, setLookupMsg] = useState({})
+  async function lookupLeg(i) {
+    const l = legs[i]
+    setLookingUp(i); setLookupMsg(m => ({ ...m, [i]: '' }))
+    try {
+      const st = await getFlightStatus(l.number.trim().toUpperCase(), l.date, { force: true })
+      if (!st) {
+        setLookupMsg(m => ({ ...m, [i]: 'No match — check the number and date, or fill it in by hand.' }))
+      } else {
+        const from = toCode(st.departure?.airport) || l.from
+        const to = toCode(st.arrival?.airport) || l.to
+        const depTime = (st.departure?.scheduled || '').slice(11, 16)
+        const arrTime = (st.arrival?.scheduled || '').slice(11, 16)
+        setLeg(i, { from, to, depTime: depTime || l.depTime || '', arrTime: arrTime || l.arrTime || '' })
+        setLookupMsg(m => ({ ...m, [i]:
+          `Found: ${from} → ${to}${depTime ? ` · departs ${depTime}` : ''}${arrTime ? ` · arrives ${arrTime}` : ''}` }))
+      }
+    } catch {
+      setLookupMsg(m => ({ ...m, [i]: 'Couldn’t reach the flight service — you may be offline.' }))
+    }
+    setLookingUp(null)
+  }
 
   const setStay = (i, patch) => setStays(stays.map((s, idx) => idx === i ? { ...s, ...patch } : s))
   const addStay = () => setStays([...stays, { kind: 'hotel', name: '', checkIn: '', checkOut: '', ref: '' }])
@@ -220,6 +248,7 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
           from: up ? l.from.trim().toUpperCase() : l.from.trim(),
           to: up ? l.to.trim().toUpperCase() : l.to.trim(),
           number: up ? l.number.trim().toUpperCase() : l.number.trim(),
+          depTime: l.depTime || '', arrTime: l.arrTime || '',
           seat: (l.seat || '').trim()
         }
       })
@@ -288,6 +317,16 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
               <input value={l.seat || ''} onChange={e => setLeg(i, { seat: e.target.value })}
                 placeholder={l.mode === 'flight' ? 'Seat (optional)' : l.mode === 'train' ? 'Coach / seat (optional)' : 'Seat / detail (optional)'} style={{ ...fieldStyle, flex: 1 }} />
             </div>
+            {/* Type a flight number and date, and fill in the rest automatically. */}
+            {l.mode === 'flight' && (
+              <div className="leg-lookup">
+                <button className="mini" disabled={!l.number.trim() || !l.date || lookingUp === i}
+                  onClick={() => lookupLeg(i)}>
+                  {lookingUp === i ? 'Looking up…' : 'Look up flight'}
+                </button>
+                {lookupMsg[i] && <small>{lookupMsg[i]}</small>}
+              </div>
+            )}
           </div>
         ))}
         <button className="btn ghost" onClick={addLeg} style={{ width: '100%' }}><Icon name="plus" size={15} /> Add another leg</button>

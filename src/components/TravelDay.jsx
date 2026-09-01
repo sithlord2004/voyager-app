@@ -99,9 +99,13 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
   const fromWhere = outbound ? 'home' : (trip.destinationCity || 'where you’re staying')
 
   const dep = status?.departure, arr = status?.arrival
-  // A revised time (delay) moves the whole day, which is the point.
-  const depISO = dep?.revised || dep?.scheduled || null
-  const arrISO = arr?.revised || arr?.scheduled || null
+  // A revised time (delay) moves the whole day, which is the point. If live data
+  // isn't available (no key, quota spent, or too far ahead), fall back to the
+  // times saved on the leg — so the timeline still works.
+  const legDep = leg.depTime ? `${found.date}T${leg.depTime}:00` : null
+  const legArr = leg.arrTime ? `${found.date}T${leg.arrTime}:00` : null
+  const depISO = dep?.revised || dep?.scheduled || legDep
+  const arrISO = arr?.revised || arr?.scheduled || legArr
   const delayed = !!(dep?.revised && dep?.scheduled && dep.revised !== dep.scheduled)
 
   // Once you've landed, the day is done — stop showing a live countdown for a
