@@ -147,7 +147,8 @@ export default function Trips({ trips, documents, people = [], plans = [], reloa
       {past.length > 0 && (
         <Collapsible id="trips-archive" icon="map" title="Archive" badge={past.length}>
           <p className="desc" style={{ marginTop: 0 }}>
-            Trips you've already taken. Open the ✦ button on any of them to make a trip story keepsake.
+            Trips you've already taken — everything is still here. Use <b>Trip story</b> on any of them
+            (the first button in its row) to make a keepsake you can save and share.
           </p>
           {past.map(t => (
             <TripRow key={t.id} trip={t} onDelete={onDelete} onEdit={setEditing} onPostcard={setPostcard} onMap={setMapTrip} onPlan={setPlanTrip} onStory={setStoryTrip} docCount={documents.filter(d => d.tripId === t.id).length || t.travellerIds.length} />

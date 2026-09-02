@@ -375,6 +375,14 @@ input{font-family:inherit}
 .trip-flag{width:54px;height:54px;border-radius:12px;display:grid;place-items:center;font-size:27px;flex-shrink:0;background:var(--grad-sky)}
 .trip-row .info{flex:1 1 150px;min-width:0}
 .trip-actions{position:absolute;top:12px;right:10px;display:flex;align-items:center;gap:2px}
+/* On a phone there isn't room for the action icons alongside the title — they
+   used to overlap it. Give them their own full-width row instead. */
+@media(max-width:700px){
+  .trip-row{padding-right:16px}
+  .trip-actions{position:static;width:100%;order:9;justify-content:flex-end;flex-wrap:wrap;gap:4px;
+    margin-top:4px;padding-top:10px;border-top:1px solid var(--border-soft)}
+  .trip-actions .icon-btn{width:40px;height:40px}
+}
 .icon-btn{background:none;border:none;cursor:pointer;color:var(--text-3);padding:6px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;transition:.15s}
 .icon-btn:hover{color:var(--text);background:var(--surface-2)}
 .card h3 svg{color:var(--text-2)}
