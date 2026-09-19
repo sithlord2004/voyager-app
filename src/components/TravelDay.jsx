@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getFlightStatus, statusChip } from '../lib/flights.js'
 import { getSetting, setSetting } from '../lib/db.js'
 import {
-  findTravelDayFlight, legIsDomestic, buildTimeline, markProgress,
+  findTravelDayFlights, legIsDomestic, buildTimeline, markProgress,
   fmtClock, relativeTo, routeLabel, legKey, DEFAULT_MINUTES_TO_AIRPORT
 } from '../lib/travelDay.js'
 import { toCode } from '../lib/airports.js'
@@ -12,8 +12,10 @@ import FlightRadar from './FlightRadar.jsx'
 
 // The day-of-travel companion. Only renders when a flight departs today.
 export default function TravelDay({ trips = [], setView, refreshKey }) {
-  const found = useMemo(() => findTravelDayFlight(trips), [trips, refreshKey])
-  const [status, setStatus] = useState(null)
+  // Every flight today, so a long-haul day (MEL → SIN → LHR) rolls on to the
+  // next leg once the first has landed.
+  const todays = useMemo(() => findTravelDayFlights(trips), [trips, refreshKey])
+  const [statuses, setStatuses] = useState({})
   const [mins, setMins] = useState(DEFAULT_MINUTES_TO_AIRPORT)
   const [editing, setEditing] = useState(false)
   const [now, setNow] = useState(new Date())
@@ -27,6 +29,33 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
     const id = setInterval(() => setNow(new Date()), 30000)
     return () => clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    let off = false
+    todays.forEach(f => {
+      getFlightStatus(f.leg.number, f.date)
+        .then(s => { if (!off && s) setStatuses(prev => ({ ...prev, [f.leg.number + '_' + f.date]: s })) })
+        .catch(() => {})
+    })
+    return () => { off = true }
+  }, [todays.map(f => f.leg.number + f.date).join(','), refreshKey]) // eslint-disable-line
+
+  // A leg counts as done 90 minutes after it actually lands. Without an arrival
+  // time we don't guess — a flight with unknown times stays on screen for the
+  // day rather than vanishing mid-journey.
+  const found = useMemo(() => {
+    const nowMs = now.getTime()
+    const unfinished = todays.find(f => {
+      const st = statuses[f.leg.number + '_' + f.date]
+      const arrISO = st?.arrival?.revised || st?.arrival?.scheduled
+        || (f.leg.arrTime ? `${f.date}T${f.leg.arrTime}:00` : null)
+      if (!arrISO) return true
+      const t = new Date(arrISO).getTime()
+      return isNaN(t) || nowMs <= t + 90 * 60000
+    })
+    return unfinished || null
+  }, [todays, statuses, now])
+  const status = found ? statuses[found.leg.number + '_' + found.date] || null : null
 
   // The journey to the airport differs per flight: leaving home for the
   // outbound, leaving your hotel/Airbnb for the return. So we remember a time
@@ -54,14 +83,6 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
     return () => { off = true }
   }, [found?.leg?.number, found?.date]) // eslint-disable-line
 
-  useEffect(() => {
-    if (!found) return
-    let off = false
-    getFlightStatus(found.leg.number, found.date)
-      .then(s => { if (!off && s) setStatus(s) })
-      .catch(() => {})
-    return () => { off = true }
-  }, [found?.leg?.number, found?.date, refreshKey]) // eslint-disable-line
 
   async function saveMins(v) {
     const n = Math.max(0, Math.min(240, Number(v) || 0))
@@ -95,7 +116,7 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
   }
 
   if (!found) return null
-  const { trip, leg, outbound } = found
+  const { trip, leg, outbound, connection } = found
   const fromWhere = outbound ? 'home' : (trip.destinationCity || 'where you’re staying')
 
   const dep = status?.departure, arr = status?.arrival
@@ -108,20 +129,11 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
   const arrISO = arr?.revised || arr?.scheduled || legArr
   const delayed = !!(dep?.revised && dep?.scheduled && dep.revised !== dep.scheduled)
 
-  // Once you've landed, the day is done — stop showing a live countdown for a
-  // flight that's already over. We allow a short grace period after arrival
-  // (bags, transfers), and fall back to a few hours after departure when we
-  // have no arrival time to go on.
-  const finishedAt = arrISO ? new Date(arrISO).getTime() + 90 * 60000
-    : depISO ? new Date(depISO).getTime() + 6 * 3600000
-    : null
-  if (finishedAt && now.getTime() > finishedAt) return null
-
   const items = markProgress(
-    buildTimeline({ depISO, arrISO, domestic: legIsDomestic(leg), minutesToAirport: mins }),
+    buildTimeline({ depISO, arrISO, domestic: legIsDomestic(leg), connection, minutesToAirport: mins }),
     now
   )
-  const leave = items.find(i => i.key === 'leave')
+  const hero = items.find(i => i.hero)
   const next = items.find(i => i.isNext)
   const [chipCls, chipLabel] = status ? statusChip(status.status) : ['st-ontime', 'scheduled']
 
@@ -132,7 +144,7 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
     <div className="card td">
       <div className="td-head">
         <div>
-          <span className="td-kicker">Travel day</span>
+          <span className="td-kicker">{connection ? `In transit · ${toCode(leg.from)}` : 'Travel day'}</span>
           <h3 style={{ margin: '2px 0 0' }}>
             {leg.number} · {routeLabel(leg)}{trip.destinationCity ? ` · ${trip.destinationCity}` : ''}
           </h3>
@@ -140,11 +152,15 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
         <span className={'status-chip ' + chipCls}>{chipLabel}</span>
       </div>
 
-      {leave && (
-        <div className={'td-hero' + (leave.done ? ' past' : '')}>
-          <div className="td-hero-label">{leave.done ? 'You should have left by' : 'Leave for the airport by'}</div>
-          <div className="td-hero-time">{fmtClock(leave.at)}</div>
-          <div className="td-hero-sub">{relativeTo(leave.at, now)} · {leave.note}</div>
+      {hero && (
+        <div className={'td-hero' + (hero.done ? ' past' : '')}>
+          <div className="td-hero-label">
+            {connection
+              ? (hero.done ? 'Boarding began at' : 'Boarding starts at')
+              : (hero.done ? 'You should have left by' : 'Leave for the airport by')}
+          </div>
+          <div className="td-hero-time">{fmtClock(hero.at)}</div>
+          <div className="td-hero-sub">{relativeTo(hero.at, now)} · {hero.note}</div>
         </div>
       )}
 
@@ -180,7 +196,7 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
       </div>
 
       <div className="td-foot">
-        {editing ? (
+        {connection ? null : editing ? (
           <label className="td-mins">
             {`Journey from ${fromWhere} to ${toCode(leg.from) || 'the airport'}`}
             <span>

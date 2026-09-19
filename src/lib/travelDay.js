@@ -30,22 +30,32 @@ export function legIsDomestic(leg) {
   return !!(a && b && a === b)
 }
 
-// Find a flight departing today (or already under way today) across all trips.
-// Returns { trip, leg } or null.
-export function findTravelDayFlight(trips = [], now = new Date()) {
+// Every flight dated today, in order. A long-haul day often has two or three
+// (MEL → SIN → LHR), and once the first one has landed the card should move on
+// to the next rather than disappearing.
+export function findTravelDayFlights(trips = [], now = new Date()) {
   const today = localISODate(now)
+  const out = []
   for (const trip of trips) {
     const legs = (trip.legs || []).filter(l => (l.mode || 'flight') === 'flight' && l.number)
-    for (let i = 0; i < legs.length; i++) {
-      const leg = legs[i]
+    legs.forEach((leg, i) => {
       const date = leg.date || trip.startDate
+      // A leg is a CONNECTION when it departs from where the previous leg
+      // landed (MEL → SIN → LHR): you're already airside, so "leave for the
+      // airport" is meaningless — boarding and the gate are what matter.
+      const prev = legs[i - 1]
+      const connection = !!(prev && toCode(prev.to) && toCode(prev.to) === toCode(leg.from))
       // `outbound` = the first flight of the trip, i.e. the one you leave home
-      // for. Later legs start from wherever you're staying, which is a
-      // different journey to the airport.
-      if (date === today) return { trip, leg, date, legIndex: i, outbound: i === 0 }
-    }
+      // for. Later non-connection legs start from wherever you're staying.
+      if (date === today) out.push({ trip, leg, date, legIndex: i, outbound: i === 0, connection })
+    })
   }
-  return null
+  return out
+}
+
+// The first flight of today (kept for callers that only need one).
+export function findTravelDayFlight(trips = [], now = new Date()) {
+  return findTravelDayFlights(trips, now)[0] || null
 }
 
 // A stable key for remembering the journey time for one specific flight.
@@ -54,23 +64,32 @@ export const legKey = (trip, leg, date) => `${trip?.id || ''}:${leg?.number || '
 // Build the day's milestones. `depISO`/`arrISO` are local ISO strings from the
 // flight feed; without them we can still show the ordered checklist, just
 // without clock times.
-export function buildTimeline({ depISO, arrISO, domestic, minutesToAirport = DEFAULT_MINUTES_TO_AIRPORT }) {
+export function buildTimeline({ depISO, arrISO, domestic, connection = false, minutesToAirport = DEFAULT_MINUTES_TO_AIRPORT }) {
   if (!depISO) return []
   const dep = new Date(depISO)
   if (isNaN(dep)) return []
   const b = domestic ? BUFFERS.domestic : BUFFERS.international
   const before = mins => new Date(dep.getTime() - mins * MIN)
 
-  const items = [
-    { key: 'checkin',  label: 'Check-in opens',        at: new Date(dep.getTime() - 24 * 60 * MIN), note: 'Online check-in' },
-    { key: 'leave',    label: 'Leave for the airport', at: before(b.atAirport + minutesToAirport), hero: true,
-      note: `${minutesToAirport} min journey + ${b.atAirport} min at the airport` },
-    { key: 'arrive',   label: 'Be at the airport',     at: before(b.atAirport) },
-    { key: 'bag',      label: 'Bag drop closes',       at: before(b.bagDrop), note: 'Typical cutoff — check your airline' },
-    { key: 'boarding', label: 'Boarding starts',       at: before(b.boarding) },
-    { key: 'doors',    label: 'Gate closes',           at: before(b.doors), note: 'Be at the gate before this' },
-    { key: 'dep',      label: 'Departure',             at: dep }
-  ]
+  // In transit you're already through security with your bags checked
+  // through, so the only milestones left are at the gate.
+  const items = connection
+    ? [
+        { key: 'boarding', label: 'Boarding starts', at: before(b.boarding), hero: true,
+          note: 'You’re already airside — head to the gate' },
+        { key: 'doors',    label: 'Gate closes',     at: before(b.doors), note: 'Be at the gate before this' },
+        { key: 'dep',      label: 'Departure',       at: dep }
+      ]
+    : [
+        { key: 'checkin',  label: 'Check-in opens',        at: new Date(dep.getTime() - 24 * 60 * MIN), note: 'Online check-in' },
+        { key: 'leave',    label: 'Leave for the airport', at: before(b.atAirport + minutesToAirport), hero: true,
+          note: `${minutesToAirport} min journey + ${b.atAirport} min at the airport` },
+        { key: 'arrive',   label: 'Be at the airport',     at: before(b.atAirport) },
+        { key: 'bag',      label: 'Bag drop closes',       at: before(b.bagDrop), note: 'Typical cutoff — check your airline' },
+        { key: 'boarding', label: 'Boarding starts',       at: before(b.boarding) },
+        { key: 'doors',    label: 'Gate closes',           at: before(b.doors), note: 'Be at the gate before this' },
+        { key: 'dep',      label: 'Departure',             at: dep }
+      ]
   if (arrISO && !isNaN(new Date(arrISO))) {
     items.push({ key: 'arr', label: 'Arrives', at: new Date(arrISO) })
   }
