@@ -73,7 +73,7 @@ export default function Dashboard({ trips, documents, people, packing = [], plan
   useEffect(() => {
     flightLegs.forEach(l => {
       const key = l.number + '_' + (l.date || next.startDate)
-      getFlightStatus(l.number, l.date || next?.startDate).then(s => { if (s) setStatuses(prev => ({ ...prev, [key]: s })) })
+      getFlightStatus(l.number, l.date || next?.startDate, { from: toCode(l.from), to: toCode(l.to) }).then(s => { if (s) setStatuses(prev => ({ ...prev, [key]: s })) })
     })
   }, [refreshKey]) // eslint-disable-line
 

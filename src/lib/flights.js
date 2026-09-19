@@ -35,9 +35,11 @@ const daysAway = date => {
   return isNaN(d) ? 0 : Math.round((d - new Date()) / 86400000)
 }
 
-export async function getFlightStatus(number, date, { force = false } = {}) {
+export async function getFlightStatus(number, date, { force = false, from = '', to = '' } = {}) {
   if (!number || !date) return null
-  const key = `${number}_${date}`
+  // The route is part of the key: the same number on a different segment is a
+  // different flight, and must not share a cache entry.
+  const key = `${number}_${date}_${from || ''}`
 
   const cache = readCache()
   const hit = cache[key]
@@ -58,6 +60,8 @@ export async function getFlightStatus(number, date, { force = false } = {}) {
     if (!b) return null
     try {
       const url = `${b.endpoint.replace(/\/$/, '')}/flight?number=${encodeURIComponent(number)}&date=${date}`
+        + (from ? `&from=${encodeURIComponent(from)}` : '')
+        + (to ? `&to=${encodeURIComponent(to)}` : '')
       const r = await fetch(url, { headers: { Authorization: 'Bearer ' + b.token } })
       if (!r.ok) return hit?.status ?? null
       const { status } = await r.json()

@@ -213,7 +213,7 @@ function AddTripModal({ onClose, onSaved, trip, seed, people = [] }) {
     const l = legs[i]
     setLookingUp(i); setLookupMsg(m => ({ ...m, [i]: '' }))
     try {
-      const st = await getFlightStatus(l.number.trim().toUpperCase(), l.date, { force: true })
+      const st = await getFlightStatus(l.number.trim().toUpperCase(), l.date, { force: true, from: toCode(l.from), to: toCode(l.to) })
       if (!st) {
         setLookupMsg(m => ({ ...m, [i]: 'No match — check the number and date, or fill it in by hand.' }))
       } else {

@@ -327,6 +327,7 @@ input{font-family:inherit}
 .td-hero-time{font-size:38px;font-weight:700;letter-spacing:-1px;line-height:1.15;margin:2px 0}
 .td-hero-sub{font-size:12px;color:var(--text-3)}
 .td-gate{font-size:12.5px;font-weight:600;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border-soft);border-radius:999px;padding:5px 12px;display:inline-block;margin-bottom:12px}
+.td-gate small{display:block;font-weight:500;font-size:11px;color:var(--text-3);margin-top:3px}
 .td-line{display:flex;flex-direction:column;gap:2px;margin-top:2px}
 .td-step{display:flex;align-items:center;gap:11px;padding:8px 0;border-top:1px solid var(--border-soft)}
 .td-step:first-child{border-top:none}

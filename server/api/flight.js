@@ -5,7 +5,28 @@ const AUTH = process.env.SYNC_TOKEN
 const READ = process.env.PUBLIC_READ_TOKEN
 const authorized = h => h === 'Bearer ' + AUTH || (READ && h === 'Bearer ' + READ)
 
-async function fetchStatus(number, date) {
+// Pick the right instance. A flight number can return several (the same number
+// on neighbouring dates, or a different segment entirely), and blindly taking
+// the first is how you end up showing someone another flight's gate.
+function pickInstance(list, { date, from, to }) {
+  if (!list.length) return null
+  const iata = f => (f?.departure?.airport?.iata || '').toUpperCase()
+  const dest = f => (f?.arrival?.airport?.iata || '').toUpperCase()
+  const depDate = f => String(f?.departure?.scheduledTime?.local || '').slice(0, 10)
+
+  let c = list
+  if (from) c = c.filter(f => iata(f) === from.toUpperCase())
+  if (to && c.some(f => dest(f) === to.toUpperCase())) c = c.filter(f => dest(f) === to.toUpperCase())
+  const sameDay = c.filter(f => depDate(f) === date)
+  if (sameDay.length) c = sameDay
+
+  // If the caller told us the route and nothing matches it, we'd rather return
+  // nothing than confidently show the wrong aircraft's gate.
+  if (from && !c.length) return null
+  return c[0] || (from ? null : list[0])
+}
+
+async function fetchStatus(number, date, from, to) {
   // No key configured = live flight status is switched off. Return nothing
   // rather than calling the provider, so it can't accrue usage or overage.
   if (!process.env.AERODATABOX_KEY) return null
@@ -17,12 +38,14 @@ async function fetchStatus(number, date) {
     }
   })
   if (!r.ok) throw new Error('provider ' + r.status)
-  const arr = await r.json()
-  const f = Array.isArray(arr) ? arr[0] : arr
+  const body = await r.json()
+  const list = Array.isArray(body) ? body : (body ? [body] : [])
+  const f = pickInstance(list, { date, from, to })
   if (!f) return null
   return {
     number: f.number,
     status: f.status,
+    fetchedAt: Date.now(),
     airline: f.airline?.name,
     departure: {
       airport: f.departure?.airport?.iata,
@@ -50,11 +73,11 @@ export default async function handler(req, res) {
   if (!authorized(req.headers.authorization || ''))
     return res.status(401).json({ error: 'Unauthorized' })
 
-  const { number, date } = req.query || {}
+  const { number, date, from, to } = req.query || {}
   if (!number || !date) return res.status(400).json({ error: 'number and date required' })
 
   try {
-    const status = await fetchStatus(number, date)
+    const status = await fetchStatus(number, date, from, to)
     res.status(200).json({ status })
   } catch (e) {
     res.status(502).json({ error: String(e.message || e) })

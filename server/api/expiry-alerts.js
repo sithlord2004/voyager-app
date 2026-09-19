@@ -15,7 +15,7 @@ const HOUR_WINDOW = 2     // a 2-hour window, so an hourly job still catches it
 
 // Scheduled departure time for a flight (best-effort; used to enrich the
 // travel-day notification).
-async function fetchFlight(number, date) {
+async function fetchFlight(number, date, from = '') {
   if (!process.env.AERODATABOX_KEY) return null
   const r = await fetch(`https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(number)}/${date}`, {
     headers: {
@@ -24,8 +24,13 @@ async function fetchFlight(number, date) {
     }
   })
   if (!r.ok) return null
-  const arr = await r.json()
-  const f = Array.isArray(arr) ? arr[0] : arr
+  const body = await r.json()
+  const list = Array.isArray(body) ? body : (body ? [body] : [])
+  // Same trap as the /flight endpoint: a flight number can return several
+  // instances, so match the departure airport rather than taking the first.
+  const f = (from
+    ? list.find(x => (x?.departure?.airport?.iata || '').toUpperCase() === from.toUpperCase())
+    : list[0]) || null
   if (!f) return null
   return {
     departure: {
@@ -241,7 +246,7 @@ export default async function handler(req, res) {
         if (await alreadySent(fam.family_id, 'nightbefore', local.date)) break
         let when = ''
         try {
-          const st = await fetchFlight(leg.number, tomorrow)
+          const st = await fetchFlight(leg.number, tomorrow, leg.from)
           const dep = st?.departure?.revised || st?.departure?.scheduled
           if (dep) when = ` at ${String(dep).slice(11, 16)}`
         } catch { /* time is a bonus */ }
@@ -270,7 +275,7 @@ export default async function handler(req, res) {
         if (await alreadySent(fam.family_id, 'travelday', utcDay)) break
         let when = ''
         try {
-          const st = await fetchFlight(leg.number, today)
+          const st = await fetchFlight(leg.number, today, leg.from)
           const dep = st?.departure?.revised || st?.departure?.scheduled
           if (dep) when = ` departs ${String(dep).slice(11, 16)}`
         } catch { /* time is a bonus, not required */ }

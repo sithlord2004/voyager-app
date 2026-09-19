@@ -33,7 +33,7 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
   useEffect(() => {
     let off = false
     todays.forEach(f => {
-      getFlightStatus(f.leg.number, f.date)
+      getFlightStatus(f.leg.number, f.date, { from: toCode(f.leg.from), to: toCode(f.leg.to) })
         .then(s => { if (!off && s) setStatuses(prev => ({ ...prev, [f.leg.number + '_' + f.date]: s })) })
         .catch(() => {})
     })
@@ -177,7 +177,17 @@ export default function TravelDay({ trips = [], setView, refreshKey }) {
         </p>
       )}
 
-      {gate && <div className="td-gate">{gate}{arr?.baggageBelt ? ` · Belt ${arr.baggageBelt} on arrival` : ''}</div>}
+      {gate && (
+        <div className="td-gate">
+          {gate}{arr?.baggageBelt ? ` · Belt ${arr.baggageBelt} on arrival` : ''}
+          {/* Gates are changed late and often — say when we last looked rather
+              than implying this is authoritative. */}
+          <small>
+            {status?.fetchedAt ? `as of ${fmtClock(new Date(status.fetchedAt))} · ` : ''}
+            always confirm on the airport screens
+          </small>
+        </div>
+      )}
 
       <div className="td-line">
         {items.map(it => (
