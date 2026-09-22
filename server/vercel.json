@@ -1,5 +1,8 @@
 {
   "crons": [
     { "path": "/api/expiry-alerts", "schedule": "0 8 * * *" }
-  ]
+  ],
+  "functions": {
+    "api/expiry-alerts.js": { "maxDuration": 60 }
+  }
 }

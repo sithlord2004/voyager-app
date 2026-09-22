@@ -1,3 +1,4 @@
+import { fetchT } from './http.js'
 // Fetch + normalise UK FCDO travel advice for a destination (free, official,
 // no key). Used by both /api/advisory (live card) and the daily email cron.
 
@@ -68,7 +69,7 @@ export async function fetchAdvisory(countryCode, countryName) {
   if (!slug) return null
   let data
   try {
-    const r = await fetch(`https://www.gov.uk/api/content/foreign-travel-advice/${slug}`)
+    const r = await fetchT(`https://www.gov.uk/api/content/foreign-travel-advice/${slug}`)
     if (!r.ok) return { found: false, slug, link: 'https://www.gov.uk/foreign-travel-advice' }
     data = await r.json()
   } catch { return null }

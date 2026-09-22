@@ -4,6 +4,8 @@
 // Uses Open-Meteo's geocoding API (free, no key — the same service the app
 // already uses for weather), which returns an IANA timezone for a place.
 
+import { fetchT } from './http.js'
+
 const cache = new Map()   // city -> timezone, for the life of the function instance
 
 export async function timezoneFor(city, countryCode) {
@@ -12,7 +14,7 @@ export async function timezoneFor(city, countryCode) {
   if (!city) return null
   try {
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&format=json`
-    const r = await fetch(url)
+    const r = await fetchT(url, {}, 3000)
     if (!r.ok) return null
     const j = await r.json()
     const tz = j?.results?.[0]?.timezone || null

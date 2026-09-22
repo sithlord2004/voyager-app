@@ -12,13 +12,15 @@ const WMO = {
   95: 'thunderstorms', 96: 'thunderstorms', 99: 'thunderstorms'
 }
 
+import { fetchT } from './http.js'
+
 const geoCache = new Map()
 
 async function coordsFor(city) {
   if (!city) return null
   if (geoCache.has(city)) return geoCache.get(city)
   try {
-    const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&format=json`)
+    const r = await fetchT(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&format=json`, {}, 3000)
     if (!r.ok) return null
     const hit = (await r.json())?.results?.[0]
     const c = hit ? { lat: hit.latitude, lon: hit.longitude } : null
@@ -34,7 +36,7 @@ export async function todayForecast(city, localDate) {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}`
       + `&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=3`
-    const r = await fetch(url)
+    const r = await fetchT(url, {}, 3500)
     if (!r.ok) return null
     const d = await r.json()
     const i = Math.max(0, (d?.daily?.time || []).indexOf(localDate))

@@ -7,6 +7,7 @@ import { pushToFamily } from '../lib/push.js'
 import { timezoneFor, nowIn } from '../lib/localtime.js'
 import { once, alreadySent } from '../lib/notifyLog.js'
 import { todayForecast } from '../lib/forecast.js'
+import { fetchT } from '../lib/http.js'
 
 // When (in the traveller's own local time) the daily notifications should land.
 const BRIEFING_HOUR = 8
@@ -17,7 +18,7 @@ const HOUR_WINDOW = 2     // a 2-hour window, so an hourly job still catches it
 // travel-day notification).
 async function fetchFlight(number, date, from = '') {
   if (!process.env.AERODATABOX_KEY) return null
-  const r = await fetch(`https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(number)}/${date}`, {
+  const r = await fetchT(`https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(number)}/${date}`, {
     headers: {
       'X-RapidAPI-Key': process.env.AERODATABOX_KEY,
       'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com'
@@ -90,6 +91,12 @@ export default async function handler(req, res) {
 
   let sent = 0
   for (const fam of families || []) {
+    // One trips read per family, shared by every block below. This used to be
+    // five separate identical queries, which is a large part of why the job
+    // was timing out.
+    const { data: tripRows } = await supabase.from('trips')
+      .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
+
     // Pull the owner id out of the JSON payload without dragging the (large,
     // encrypted) document body along with it.
     const { data: docs } = await supabase
@@ -142,8 +149,6 @@ export default async function handler(req, res) {
 
     // Push: packing nudge two days out, deep-linked to the packing screen.
     try {
-      const { data: tripRows } = await supabase.from('trips')
-        .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
       const inTwoDays = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
       for (const row of (tripRows || [])) {
         const t = row.payload
@@ -175,8 +180,6 @@ export default async function handler(req, res) {
     // quiet "day 3 of 6" if nothing's planned. Skipped on a flight day, since
     // the travel-day notice below covers that better.
     try {
-      const { data: tripRows } = await supabase.from('trips')
-        .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
       const today = new Date().toISOString().slice(0, 10)
       for (const row of (tripRows || [])) {
         const t = row.payload
@@ -222,8 +225,6 @@ export default async function handler(req, res) {
     // Push: the evening before a flight — the nudge that actually helps, while
     // there's still time to pack and find your documents.
     try {
-      const { data: tripRows } = await supabase.from('trips')
-        .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
       for (const row of (tripRows || [])) {
         const t = row.payload
         if (!t || t.deleted) continue
@@ -263,8 +264,6 @@ export default async function handler(req, res) {
 
     // Push: travel day — a flight departing today, with its scheduled time.
     try {
-      const { data: tripRows } = await supabase.from('trips')
-        .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
       const today = new Date().toISOString().slice(0, 10)
       for (const row of (tripRows || [])) {
         const t = row.payload
@@ -312,7 +311,6 @@ export default async function handler(req, res) {
 
     // Travel-advisory change check for the family's upcoming trips (best-effort).
     try {
-      const { data: tripRows } = await supabase.from('trips').select('payload').eq('family_id', fam.family_id).eq('deleted', false)
       const today = new Date()
       const seen = new Set()
       const changes = []
