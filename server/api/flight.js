@@ -3,7 +3,15 @@ const AUTH = process.env.SYNC_TOKEN
 // A separate read-only token (optional) baked into the client so shared users
 // get live flights without your private sync secret. Scoped to this endpoint.
 const READ = process.env.PUBLIC_READ_TOKEN
-const authorized = h => h === 'Bearer ' + AUTH || (READ && h === 'Bearer ' + READ)
+// Jarvis (a separate personal-assistant app) reads live status server-to-server
+// with its own token, so it can be revoked without touching the others.
+const JARVIS = process.env.JARVIS_TOKEN
+// Each token is guarded by a truthiness check: without it, an unset variable
+// would make the literal string "Bearer undefined" a valid credential.
+const authorized = h =>
+  (AUTH && h === 'Bearer ' + AUTH) ||
+  (READ && h === 'Bearer ' + READ) ||
+  (JARVIS && h === 'Bearer ' + JARVIS)
 
 // Pick the right instance. A flight number can return several (the same number
 // on neighbouring dates, or a different segment entirely), and blindly taking
