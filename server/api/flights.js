@@ -19,6 +19,18 @@ export default async function handler(req, res) {
     .select('id, payload').eq('family_id', familyId).eq('deleted', false)
   if (error) return res.status(500).json({ error: error.message })
 
+  // First names only, for "who is on this flight". No other person detail is
+  // read or returned.
+  const { data: peopleRows } = await supabase.from('people')
+    .select('payload').eq('family_id', familyId).eq('deleted', false)
+  const nameById = {}
+  for (const r of peopleRows || []) {
+    const p = r.payload
+    if (p?.id && p.name && !p.deleted) nameById[p.id] = String(p.name).trim().split(/\s+/)[0]
+  }
+
+  const wanted = String(req.query.traveller || '').trim().toLowerCase()
+  const unresolved = new Set()
   const flights = []
   for (const row of data || []) {
     const t = row.payload
@@ -28,6 +40,15 @@ export default async function handler(req, res) {
       const date = leg.date || t.startDate
       if (!date || date < from) return
       const prev = (t.legs || [])[i - 1]
+      // Per-leg travellers if a leg ever carries them; otherwise the trip's.
+      const ids = (leg.travellerIds?.length ? leg.travellerIds : t.travellerIds) || []
+      const names = ids.map(id => nameById[id]).filter(Boolean)
+      // Only claim to know who's aboard when EVERY id resolved. A partial or
+      // empty list would be worse than silence: Jarvis keeps flights whose
+      // `travellers` include Amit, so an empty array would hide his flights
+      // entirely. Omitting the key makes Jarvis fall back to showing them all.
+      const known = ids.length > 0 && names.length === ids.length
+      if (!known) ids.forEach(id => { if (!nameById[id]) unresolved.add(id) })
       flights.push({
         tripId: row.id,
         destination: t.destinationCity || null,
@@ -41,11 +62,23 @@ export default async function handler(req, res) {
         seat: leg.seat || null,
         isOutbound: i === 0,
         isConnection: !!(prev && prev.to && leg.from &&
-          String(prev.to).toUpperCase() === String(leg.from).toUpperCase())
+          String(prev.to).toUpperCase() === String(leg.from).toUpperCase()),
+        ...(known ? { travellers: names } : {})
       })
     })
   }
   flights.sort((a, b) => a.date.localeCompare(b.date) || a.legIndex - b.legIndex)
+
+  // ?traveller=Amit — only flights we can positively confirm include them.
+  const filtered = wanted
+    ? flights.filter(f => (f.travellers || []).some(n => n.toLowerCase() === wanted))
+    : flights
+
   res.setHeader('Cache-Control', 'no-store')
-  res.status(200).json({ flights: flights.slice(0, limit) })
+  res.status(200).json({
+    flights: filtered.slice(0, limit),
+    // Surfaced so a missing name is never silent: these people exist on trips
+    // but aren't synced to the cloud, so their flights carry no `travellers`.
+    ...(unresolved.size ? { unresolvedTravellerIds: [...unresolved] } : {})
+  })
 }

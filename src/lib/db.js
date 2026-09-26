@@ -139,6 +139,25 @@ export async function isVaultInitialised() {
 // first trip. (Kept as a no-op function so callers don't need to change.)
 export async function seedIfEmpty() { /* intentionally empty */ }
 
+// One-off repair: family members created by the original demo seed were never
+// flagged as dirty, so sync — which only uploads dirty records — has never
+// uploaded them. The effect is invisible on your own device but real elsewhere:
+// other devices can't resolve who a traveller is, and expiry alerts can't say
+// whose passport is expiring. Flag them once so the next sync carries them up.
+// Their original updatedAt is preserved, so this can't win a conflict against a
+// newer copy already in the cloud.
+export async function backfillPeopleSync() {
+  if (await getSetting('peopleSyncBackfill')) return 0
+  let n = 0
+  for (const p of await db.people.toArray()) {
+    if (p.deleted || p.dirty === 1) continue
+    await db.people.update(p.id, { dirty: 1, updatedAt: p.updatedAt || Date.now() })
+    n++
+  }
+  await setSetting('peopleSyncBackfill', 1)
+  return n
+}
+
 // Days until a date string (negative = past).
 export function daysUntil(dateStr) {
   if (!dateStr) return Infinity

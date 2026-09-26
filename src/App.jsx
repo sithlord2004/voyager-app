@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { db, seedIfEmpty, getSetting } from './lib/db.js'
+import { db, seedIfEmpty, backfillPeopleSync, getSetting } from './lib/db.js'
 import { getSyncConfig, setSyncConfig, syncNow } from './lib/sync.js'
 import { readInviteFromHash, clearInviteHash } from './lib/invite.js'
 import LockScreen from './components/LockScreen.jsx'
@@ -112,7 +112,7 @@ export default function App() {
   // Load data once the vault is unlocked.
   useEffect(() => {
     if (!vaultKey) return
-    (async () => { await seedIfEmpty(); await reload() })()
+    (async () => { await seedIfEmpty(); await backfillPeopleSync(); await reload() })()
   }, [vaultKey, reload])
 
   // Silent auto-refresh: every few minutes (and when the app is refocused),
