@@ -55,8 +55,18 @@ const MILESTONES = [365, 270, 180, 120, 90, 60, 30, 14, 7, 1]
 const isPassport = d => /passport/i.test(d.doc_type || '')
 const windowFor = d => (isPassport(d) ? PASSPORT_WINDOW : OTHER_WINDOW)
 
+// Whole days between two CALENDAR DATES, both anchored to UTC midnight.
+//
+// Measuring from "right now" instead meant the rounded day count changed at an
+// arbitrary time of day, so a milestone window straddled UTC midnight and
+// covered two values of `utcDay` — which is the dedupe key, so a milestone sent
+// two alerts, one either side. Anchoring to the date makes the count tick over
+// exactly at UTC midnight, so each milestone occupies exactly one day.
 function daysUntil(dateStr) {
-  return Math.round((new Date(dateStr) - new Date()) / 86400000)
+  const today = Date.parse(new Date().toISOString().slice(0, 10))
+  const target = Date.parse(dateStr)
+  if (isNaN(target)) return Infinity
+  return Math.round((target - today) / 86400000)
 }
 
 export default async function handler(req, res) {
