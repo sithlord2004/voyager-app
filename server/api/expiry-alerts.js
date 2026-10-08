@@ -118,15 +118,20 @@ export default async function handler(req, res) {
 
     // Family member names, so an alert can say *whose* passport it is.
     const nameById = {}
+    const emailById = {}   // optional per-person address
     try {
       const { data: peopleRows } = await supabase.from('people')
         .select('payload').eq('family_id', fam.family_id).eq('deleted', false)
       for (const r of (peopleRows || [])) {
         const p = r.payload
-        if (p?.id && p.name && !p.deleted) nameById[p.id] = p.name
+        if (p?.id && p.name && !p.deleted) {
+          nameById[p.id] = p.name
+          if (p.email) emailById[p.id] = String(p.email).trim()
+        }
       }
     } catch { /* names are a nicety */ }
     const ownerOf = d => nameById[d.personId] || ''
+    const ownerEmailOf = d => emailById[d.personId] || ''
 
     const soon = (docs || [])
       .map(d => ({ ...d, days: daysUntil(d.expiry_date) }))
@@ -298,29 +303,48 @@ export default async function handler(req, res) {
       }
     } catch { /* best-effort */ }
 
-    // The job runs hourly, so this MUST be deduped exactly like the pushes
-    // above — otherwise a milestone day sends one email every hour.
-    if (due.length && fam.alert_email && !force
-        && !(await alreadySent(fam.family_id, 'expiry-email', utcDay))) {
-      const rows = soon.map(d =>
-        `<tr><td>${d.title || d.doc_type}</td><td>${ownerOf(d) || '—'}</td><td>${d.doc_type || ''}</td>` +
-        `<td>${new Date(d.expiry_date).toLocaleDateString()}</td>` +
-        `<td style="color:${d.days < 90 ? '#dc2626' : '#d97706'}">${d.days} days</td></tr>`
-      ).join('')
+    // Send to the person whose document it is, when we know their address —
+    // an alert about Cesca's passport is only useful to Cesca. Anything with no
+    // owner address falls back to the family address, so nothing goes unsent.
+    if (due.length && !force) {
+      const buckets = new Map()   // address -> documents
+      for (const d of soon) {
+        const to = ownerEmailOf(d) || fam.alert_email
+        if (!to) continue
+        if (!buckets.has(to)) buckets.set(to, [])
+        buckets.get(to).push(d)
+      }
 
-      await resend.emails.send({
-        from: 'Voyager <onboarding@resend.dev>',
-        to: fam.alert_email,
-        subject: `✈️ ${soon.length} travel document(s) expiring soon`,
-        html: `<h2>Documents needing attention</h2>
-          <table cellpadding="8" style="border-collapse:collapse">
-            <tr><th align="left">Document</th><th align="left">Owner</th><th align="left">Type</th><th align="left">Expires</th><th align="left">In</th></tr>
-            ${rows}
-          </table>
-          <p style="color:#64748b;font-size:13px">Remember: some countries require a passport valid 6 months beyond travel.</p>`
-      })
-      await markSent(fam.family_id, 'expiry-email', utcDay)
-      sent++
+      // Only write to someone when one of THEIR OWN documents hit a milestone
+      // today. Otherwise Cesca's passport reaching 270 days would also mail
+      // Amit about his unrelated documents.
+      const triggered = new Set(due.map(d => ownerEmailOf(d) || fam.alert_email).filter(Boolean))
+
+      for (const [to, docs] of buckets) {
+        if (!triggered.has(to)) continue
+        // Dedupe per RECIPIENT, so one person's email can't suppress another's.
+        const key = 'expiry-email:' + to
+        if (await alreadySent(fam.family_id, key, utcDay)) continue
+        const rows = docs.map(d =>
+          `<tr><td>${d.title || d.doc_type}</td><td>${ownerOf(d) || '—'}</td><td>${d.doc_type || ''}</td>` +
+          `<td>${new Date(d.expiry_date).toLocaleDateString()}</td>` +
+          `<td style="color:${d.days < 90 ? '#dc2626' : '#d97706'}">${d.days} days</td></tr>`
+        ).join('')
+
+        await resend.emails.send({
+          from: 'Voyager <onboarding@resend.dev>',
+          to,
+          subject: `✈️ ${docs.length} travel document(s) expiring soon`,
+          html: `<h2>Documents needing attention</h2>
+            <table cellpadding="8" style="border-collapse:collapse">
+              <tr><th align="left">Document</th><th align="left">Owner</th><th align="left">Type</th><th align="left">Expires</th><th align="left">In</th></tr>
+              ${rows}
+            </table>
+            <p style="color:#64748b;font-size:13px">Remember: some countries require a passport valid 6 months beyond travel.</p>`
+        })
+        await markSent(fam.family_id, key, utcDay)
+        sent++
+      }
     }
 
     // Travel-advisory change check for the family's upcoming trips (best-effort).

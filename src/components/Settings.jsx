@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getSyncConfig, setSyncConfig, syncNow } from '../lib/sync.js'
 import { exportBackup, importBackup } from '../lib/backup.js'
 import { passkeySupported, isPasskeyEnabled, enablePasskey, disablePasskey } from '../lib/webauthn.js'
-import { db, getSetting, setSetting, createPerson, deletePerson } from '../lib/db.js'
+import { db, getSetting, setSetting, createPerson, deletePerson, updatePerson } from '../lib/db.js'
 import { makeInviteUrl } from '../lib/invite.js'
 import QRCode from 'qrcode'
 import { Icon } from './Icon.jsx'
@@ -109,6 +109,17 @@ export default function Settings({ vaultKey, people = [], reload }) {
     try { if ((await getSyncConfig()).enabled) await syncNow() } catch { /* offline is fine */ }
     reload?.()
   }
+  // Saved on blur so there's no extra button; blank clears it.
+  async function savePersonEmail(person, value) {
+    const email = value.trim()
+    if (email === (person.email || '')) return
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setMsg('⚠️ That email doesn\'t look right.'); return }
+    await updatePerson(person.id, { email })
+    setMsg(email ? `✅ ${person.name} will get their own document reminders.`
+                 : `✅ ${person.name}'s reminders will go to the family address.`)
+    reload?.()
+  }
+
   async function removePerson(id) {
     if (confirmId !== id) { setConfirmId(id); return }
     // Soft-delete that person's documents too, so they stop alerting and the removal syncs.
@@ -233,14 +244,24 @@ export default function Settings({ vaultKey, people = [], reload }) {
 
       <div className="card" style={{ maxWidth: 620, marginBottom: 16 }}>
         <h3><Icon name="users" /> Family members</h3>
-        <p className="desc">Who documents can belong to. Add your real family and remove the demo names.</p>
+        <p className="desc">
+          Who documents can belong to. Add an email and that person gets their own expiry
+          reminders — so a passport alert goes to whoever needs to renew it.
+        </p>
         {(people || []).map(p => (
-          <div key={p.id} className="alert" style={{ marginBottom: 8 }}>
-            <div className="ai" style={{ background: p.color || '#3b82f6', color: '#fff', fontWeight: 700, fontSize: 13 }}>{p.initials || makeInitials(p.name)}</div>
-            <div className="body"><b>{p.name}</b><small>{p.relationship || 'family'}</small></div>
-            <button className="mini" style={{ color: '#f87171' }} onClick={() => removePerson(p.id)}>
-              {confirmId === p.id ? 'Tap again' : '🗑 Remove'}
-            </button>
+          <div key={p.id} className="person-row">
+            <div className="person-top">
+              <div className="ai" style={{ background: p.color || '#3b82f6', color: '#fff', fontWeight: 700, fontSize: 13 }}>{p.initials || makeInitials(p.name)}</div>
+              <div className="body"><b>{p.name}</b><small>{p.relationship || 'family'}</small></div>
+              <button className="mini" style={{ color: '#f87171' }} onClick={() => removePerson(p.id)}>
+                {confirmId === p.id ? 'Tap again' : '🗑 Remove'}
+              </button>
+            </div>
+            <input type="email" inputMode="email" autoComplete="off"
+              className="person-email"
+              defaultValue={p.email || ''}
+              placeholder={`${p.name}'s email for their own reminders (optional)`}
+              onBlur={e => savePersonEmail(p, e.target.value)} />
           </div>
         ))}
         <div className="file-row" style={{ marginTop: 6 }}>
