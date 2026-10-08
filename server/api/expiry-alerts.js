@@ -5,7 +5,7 @@ import { Resend } from 'resend'
 import { fetchAdvisory } from '../lib/fcdo.js'
 import { pushToFamily } from '../lib/push.js'
 import { timezoneFor, nowIn } from '../lib/localtime.js'
-import { once, alreadySent } from '../lib/notifyLog.js'
+import { once, alreadySent, markSent } from '../lib/notifyLog.js'
 import { todayForecast } from '../lib/forecast.js'
 import { fetchT } from '../lib/http.js'
 
@@ -288,7 +288,10 @@ export default async function handler(req, res) {
       }
     } catch { /* best-effort */ }
 
-    if (due.length && fam.alert_email && !force) {
+    // The job runs hourly, so this MUST be deduped exactly like the pushes
+    // above — otherwise a milestone day sends one email every hour.
+    if (due.length && fam.alert_email && !force
+        && !(await alreadySent(fam.family_id, 'expiry-email', utcDay))) {
       const rows = soon.map(d =>
         `<tr><td>${d.title || d.doc_type}</td><td>${ownerOf(d) || '—'}</td><td>${d.doc_type || ''}</td>` +
         `<td>${new Date(d.expiry_date).toLocaleDateString()}</td>` +
@@ -306,6 +309,7 @@ export default async function handler(req, res) {
           </table>
           <p style="color:#64748b;font-size:13px">Remember: some countries require a passport valid 6 months beyond travel.</p>`
       })
+      await markSent(fam.family_id, 'expiry-email', utcDay)
       sent++
     }
 
