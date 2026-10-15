@@ -14,6 +14,23 @@ const BRIEFING_HOUR = 8
 const EVENING_HOUR = 18   // night-before-a-flight nudge, ~6pm local
 const HOUR_WINDOW = 2     // a 2-hour window, so an hourly job still catches it
 
+// The caller (cron-job.org) gives up at 30s, so finishing matters more than
+// doing everything. We work to a budget and skip the expensive, least-urgent
+// work when it runs low — anything skipped is simply retried next hour,
+// because nothing is marked as sent unless it actually went out.
+const BUDGET_MS = 20000
+let startedAt = Date.now()
+const msLeft = () => BUDGET_MS - (Date.now() - startedAt)
+
+// Promise timeout for calls that don't take one (the email provider).
+function withTimeout(promise, ms, label) {
+  let t
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => { t = setTimeout(() => rej(new Error('timeout: ' + label)), ms) })
+  ]).finally(() => clearTimeout(t))
+}
+
 // Scheduled departure time for a flight (best-effort; used to enrich the
 // travel-day notification).
 async function fetchFlight(number, date, from = '') {
@@ -97,6 +114,7 @@ export default async function handler(req, res) {
   }
   if (fErr) return res.status(500).json({ error: fErr.message })
 
+  startedAt = Date.now()
   const utcDay = new Date().toISOString().slice(0, 10)
 
   let sent = 0
@@ -222,7 +240,8 @@ export default async function handler(req, res) {
         const day = Math.round((new Date(today) - new Date(t.startDate)) / 86400000) + 1
         const total = Math.round((new Date(t.endDate) - new Date(t.startDate)) / 86400000) + 1
         const first = todays[0]
-        const wx = await todayForecast(t.destinationCity, local.date)
+        // A nicety; never worth risking the whole run for.
+        const wx = msLeft() > 7000 ? await todayForecast(t.destinationCity, local.date) : null
         const plansLine = todays.length
           ? `${first.time ? first.time + ' — ' : ''}${first.title}${todays.length > 1 ? ` (+${todays.length - 1} more)` : ''}`
           : 'Nothing planned today.'
@@ -331,7 +350,7 @@ export default async function handler(req, res) {
           `<td style="color:${d.days < 90 ? '#dc2626' : '#d97706'}">${d.days} days</td></tr>`
         ).join('')
 
-        await resend.emails.send({
+        await withTimeout(resend.emails.send({
           from: 'Voyager <onboarding@resend.dev>',
           to,
           subject: `✈️ ${docs.length} travel document(s) expiring soon`,
@@ -341,7 +360,7 @@ export default async function handler(req, res) {
               ${rows}
             </table>
             <p style="color:#64748b;font-size:13px">Remember: some countries require a passport valid 6 months beyond travel.</p>`
-        })
+        }), 6000, 'expiry email')
         await markSent(fam.family_id, key, utcDay)
         sent++
       }
@@ -358,6 +377,10 @@ export default async function handler(req, res) {
         const cc = String(t.countryCode).toUpperCase()
         if (seen.has(cc)) continue
         seen.add(cc)
+        // Each country costs a scrape of gov.uk. Stop as soon as the budget
+        // gets tight — the remaining countries are picked up next hour, and
+        // nothing is recorded as checked unless it actually was.
+        if (msLeft() < 8000) break
         const adv = await fetchAdvisory(cc, t.destinationCity)
         if (!adv || !adv.found) continue
         const { data: st } = await supabase.from('advisory_state')
@@ -380,7 +403,7 @@ export default async function handler(req, res) {
         const arows = changes.map(({ t, adv }) =>
           `<tr><td>${adv.country || t.destinationCity}</td><td>${adv.levelLabel}</td><td>${adv.changeDescription || 'Advice updated'}</td></tr>`
         ).join('')
-        await resend.emails.send({
+        await withTimeout(resend.emails.send({
           from: 'Voyager <onboarding@resend.dev>',
           to: fam.alert_email,
           subject: `⚠️ Travel advice updated for ${changes.length} destination(s)`,
@@ -390,11 +413,12 @@ export default async function handler(req, res) {
               ${arows}
             </table>
             <p style="color:#64748b;font-size:13px">Source: UK Foreign Office (FCDO). Check the full advice before you travel.</p>`
-        })
+        }), 6000, 'advisory email')
         sent++
       }
     } catch { /* advisory check is best-effort; never fail the whole cron */ }
   }
 
-  res.status(200).json({ ok: true, familiesNotified: sent })
+  // `ms` makes a future timeout diagnosable from the cron log alone.
+  res.status(200).json({ ok: true, familiesNotified: sent, ms: Date.now() - startedAt })
 }
