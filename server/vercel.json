@@ -1,8 +1,9 @@
 {
   "crons": [
-    { "path": "/api/expiry-alerts", "schedule": "0 8 * * *" }
+    { "path": "/api/advisory-check", "schedule": "0 8 * * *" }
   ],
   "functions": {
-    "api/expiry-alerts.js": { "maxDuration": 60 }
+    "api/expiry-alerts.js": { "maxDuration": 60 },
+    "api/advisory-check.js": { "maxDuration": 60 }
   }
 }

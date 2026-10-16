@@ -2,7 +2,6 @@
 // expiring documents, travel-advisory changes, and the day's travel.
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
-import { fetchAdvisory } from '../lib/fcdo.js'
 import { pushToFamily } from '../lib/push.js'
 import { timezoneFor, nowIn } from '../lib/localtime.js'
 import { once, alreadySent, markSent } from '../lib/notifyLog.js'
@@ -263,6 +262,16 @@ export default async function handler(req, res) {
         const t = row.payload
         if (!t || t.deleted) continue
 
+        // Cheap check FIRST: does this trip have a flight within a day either
+        // side of now? Looking up a timezone is a network call, and doing it
+        // for every trip before checking anything was most of this block's
+        // cost on hours when nothing is happening.
+        const near = new Set([-1, 0, 1].map(o =>
+          new Date(Date.now() + o * 86400000).toISOString().slice(0, 10)))
+        const maybe = (t.legs || []).some(l =>
+          (l.mode || 'flight') === 'flight' && l.number && near.has(l.date || t.startDate))
+        if (!maybe && !force) continue
+
         // Evening where the traveller is (or where they're departing from).
         const tz = await timezoneFor(t.destinationCity, t.countryCode)
         const local = nowIn(tz)
@@ -366,57 +375,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // Travel-advisory change check for the family's upcoming trips (best-effort).
-    try {
-      const today = new Date()
-      const seen = new Set()
-      const changes = []
-      for (const row of (tripRows || [])) {
-        const t = row.payload
-        if (!t || t.deleted || !t.countryCode || !t.endDate || new Date(t.endDate) < today) continue
-        const cc = String(t.countryCode).toUpperCase()
-        if (seen.has(cc)) continue
-        seen.add(cc)
-        // Each country costs a scrape of gov.uk. Stop as soon as the budget
-        // gets tight — the remaining countries are picked up next hour, and
-        // nothing is recorded as checked unless it actually was.
-        if (msLeft() < 8000) break
-        const adv = await fetchAdvisory(cc, t.destinationCity)
-        if (!adv || !adv.found) continue
-        const { data: st } = await supabase.from('advisory_state')
-          .select('fingerprint').eq('family_id', fam.family_id).eq('country_code', cc).maybeSingle()
-        if (st && st.fingerprint && st.fingerprint !== adv.fingerprint) changes.push({ t, adv })
-        await supabase.from('advisory_state').upsert(
-          { family_id: fam.family_id, country_code: cc, fingerprint: adv.fingerprint, checked_at: Date.now() },
-          { onConflict: 'family_id,country_code' })
-      }
-      if (changes.length) {
-        const c0 = changes[0]
-        await pushToFamily(fam.family_id, {
-          title: `Travel advice updated — ${c0.adv.country || c0.t.destinationCity}`,
-          body: c0.adv.changeDescription || c0.adv.levelLabel || 'The official advice has changed.',
-          tag: 'voyager-advisory',
-          url: '/'
-        }).catch(() => {})
-      }
-      if (changes.length && fam.alert_email && !force) {
-        const arows = changes.map(({ t, adv }) =>
-          `<tr><td>${adv.country || t.destinationCity}</td><td>${adv.levelLabel}</td><td>${adv.changeDescription || 'Advice updated'}</td></tr>`
-        ).join('')
-        await withTimeout(resend.emails.send({
-          from: 'Voyager <onboarding@resend.dev>',
-          to: fam.alert_email,
-          subject: `⚠️ Travel advice updated for ${changes.length} destination(s)`,
-          html: `<h2>Travel advice has changed</h2>
-            <table cellpadding="8" style="border-collapse:collapse">
-              <tr><th align="left">Destination</th><th align="left">Status</th><th align="left">Latest update</th></tr>
-              ${arows}
-            </table>
-            <p style="color:#64748b;font-size:13px">Source: UK Foreign Office (FCDO). Check the full advice before you travel.</p>`
-        }), 6000, 'advisory email')
-        sent++
-      }
-    } catch { /* advisory check is best-effort; never fail the whole cron */ }
+    // (The travel-advisory check now lives in /api/advisory-check, run daily —
+    //  scraping gov.uk is far too slow for an hourly job on a 30s leash.)
   }
 
   // `ms` makes a future timeout diagnosable from the cron log alone.
