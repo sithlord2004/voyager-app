@@ -1,3 +1,17 @@
+-- ---------------------------------------------------------------------------
+-- NOTE (Oct 2026): Supabase no longer auto-grants Data API access to tables
+-- created in `public`. Existing tables kept their grants, so the live database
+-- is unaffected — but a table created by running this file on a NEW project,
+-- a preview branch, or a local `supabase db reset` would have no privileges,
+-- and the backend would fail with "permission denied".
+--
+-- The grants at the end of this file make that safe. They are deliberately
+-- service_role ONLY: Voyager's app never talks to Supabase directly — every
+-- read and write goes through the backend with the service key — so anon and
+-- authenticated need no access at all. That's tighter than Supabase's old
+-- default, where anon held a grant and was held back only by RLS.
+-- ---------------------------------------------------------------------------
+
 -- Voyager backend schema (Postgres / Supabase)
 -- The server is "dumb storage": it holds ciphertext blobs plus the minimal
 -- clear metadata the dashboard and expiry-alert email need. It never sees a key.
@@ -88,3 +102,22 @@ alter table documents enable row level security;
 alter table families  enable row level security;
 -- No anon/auth policies are created, so the public anon key has zero access.
 -- The serverless functions use the service-role key, which bypasses RLS.
+
+
+-- ---------------------------------------------------------------------------
+-- Privileges. Required for anything created from 30 Oct 2026 onwards.
+-- `trips` and `people` predate this file; they're listed so a fresh rebuild
+-- from scratch is complete.
+-- ---------------------------------------------------------------------------
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'documents','families','advisory_state','packing',
+    'notify_log','plans','push_subs','trips','people'
+  ] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('grant select, insert, update, delete on public.%I to service_role', t);
+    end if;
+  end loop;
+end $$;
